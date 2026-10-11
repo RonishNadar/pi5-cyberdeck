@@ -29,6 +29,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
   - [8. Audio over HDMI](#8-audio-over-hdmi)
   - [9. Bluetooth address fix](#9-bluetooth-address-fix)
   - [10. Accounts and extras](#10-accounts-and-extras)
+  - [11. Camera](#11-camera)
 - [Using the deck](#using-the-deck)
 - [How it fits together](#how-it-fits-together)
 - [Troubleshooting](#troubleshooting)
@@ -58,6 +59,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 | **Power supply, 5.1 V 5 A USB-C** | The official 27 W supply. Weaker supplies cause undervoltage and limit USB power to 600 mA, which the touch panel shares. | [27 W supply](https://www.raspberrypi.com/products/27w-power-supply/), [Pi 5 power info](https://rptl.io/rpi5-power-supply-info) |
 | **microSD card, 32 GB or more** | A1/A2 rated | |
 | **USB keyboard** | Needed for typing; touch covers everything else | |
+| **Camera Module 3 Wide NoIR (IMX708)** (optional), on **CAM1** | 12 MP, autofocus, HDR, no IR filter (night vision). Needs a 22-pin Pi 5 camera cable. | [Camera docs](https://www.raspberrypi.com/documentation/accessories/camera.html), [Ubuntu camera guide](https://ubuntu.com/hardware/docs/boards/how-to/special_hardware/rpi-camera/) |
 | **Headphones or speaker** (optional) | Plug into the panel's 3.5 mm jack, or use Bluetooth | |
 
 **Wiring**
@@ -107,6 +109,7 @@ pi5-cyberdeck/
 │       ├── deck-footer.sh           footer blocks
 │       ├── deck-watch.sh            temperature, disk and power warnings
 │       ├── notify                   header notifications
+│       ├── camera.py                camera app
 │       ├── lanscan.py               LAN scanner
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
@@ -301,6 +304,22 @@ These hold personal data and are **not** in the repo:
 - **Claude Code** (optional): `curl -fsSL https://claude.ai/install.sh | bash` ([setup docs](https://code.claude.com/docs/en/setup)).
 - **Boot logo:** `~/bin/make-logo.sh ~/Pictures/ronad_logo.png` draws it (League Gothic); for the splash it's rotated with `-rotate 270` and copied to `/usr/share/plymouth/themes/deck/logo.png`, followed by `sudo update-initramfs -u`.
 
+### 11. Camera
+
+The camera app (`~/bin/camera.py`, **Camera** in the apps tab) is a fullscreen GTK 4 window: live preview, PHOTO (full 12 MP with autofocus), REC (video), HDR, NIGHT (long exposure), NoIR tuning, FLIP, and PICS (opens the photos in yazi). Files go to `~/Pictures/Camera/`.
+
+```bash
+sudo apt install -y rpicam-apps libcamera-tools ffmpeg python3-gi gir1.2-gtk-4.0
+rpicam-hello --list-cameras
+```
+
+- **Detection:** with `camera_auto_detect=1` the camera wasn't found on CAM1. Forcing the driver fixed it: `camera_auto_detect=0` and `dtoverlay=imx708` under `[all]` in `/boot/firmware/config.txt` (on the Pi 5, `imx708` without a port option means CAM1; use `dtoverlay=imx708,cam0` for CAM0).
+- **Tuning:** the module reports `camera module ID 0x0000`, so libcamera doesn't know it's the Wide NoIR. The app uses `/usr/share/libcamera/ipa/rpi/pisp/imx708_wide_noir.json` by default (the NoIR button).
+- **Field of view:** the 1536x864 sensor mode is a center crop, so the preview forces the full-sensor `2304:1296:10:P` mode and scales it down.
+- **Video:** the Pi 5 has no hardware H.264 encoder, so videos save the MJPEG preview stream to `.mkv` without re-encoding.
+- **Power:** the camera needs the 5 V 5 A supply. On a weaker supply the Pi browned out within seconds of starting the preview (`Undervoltage detected!`, then the log ends). Temporary workaround: `arm_freq=1800` in `config.txt` and a 1280x720, 20 fps preview.
+- **sway:** `for_window [app_id="tech.ronad.Camera"] fullscreen enable` in the sway config.
+
 ---
 
 ## Using the deck
@@ -317,7 +336,7 @@ These hold personal data and are **not** in the repo:
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Files (yazi), Monitor (btop), Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 

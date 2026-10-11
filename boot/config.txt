@@ -38,7 +38,7 @@ enable_uart=1
 # Autoload overlays for any recognized cameras or displays that are attached
 # to the CSI/DSI ports. Please note this is for libcamera support, *not* for
 # the legacy camera stack
-camera_auto_detect=1
+camera_auto_detect=0
 display_auto_detect=1
 
 # Config settings specific to arm64
@@ -66,3 +66,9 @@ dtoverlay=dwc2,dr_mode=host
 
 [all]
 disable_splash=1
+
+[all]
+dtoverlay=imx708
+
+[all]
+arm_freq=1800

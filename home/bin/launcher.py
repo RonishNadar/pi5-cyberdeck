@@ -23,6 +23,7 @@ except Exception:
 # id, icon, label, description, tab name (None = always new), command, program to check, color
 APPS = [
     ("term",  "\uf120", "Terminal",  "new shell",            None,       "bash",                                  "bash",       PURPLE),
+    ("cam",   "\uf030", "Camera",    "photos and video",     "camera",   "~/bin/camera.py",                       "camera.py",  PINK),
     ("files", "\uf07c", "Files",     "yazi file manager",    "files",    "yazi",                                  "yazi",       CYAN),
     ("mon",   "\uf0e4", "Monitor",   "btop system monitor",  "monitor",  "btop",                                  "btop",       GREEN),
     ("music", "\uf001", "Music",     "cmus player",          "music",    "cmus",                                  "cmus",       YELLOW),
