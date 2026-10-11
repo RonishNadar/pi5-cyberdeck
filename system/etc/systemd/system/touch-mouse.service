@@ -1,0 +1,12 @@
+[Unit]
+Description=Touchscreen to mouse emulation
+After=systemd-udevd.service
+
+[Service]
+Environment=ROTATE=3
+ExecStart=/usr/bin/python3 /usr/local/bin/touch-mouse.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

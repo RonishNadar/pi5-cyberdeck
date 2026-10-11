@@ -1,0 +1,6 @@
+[main]
+  theme = "dracula"
+  dark-mode = true
+  packet-colors = true
+  auto-scroll = true
+  disable-shark-fin = true

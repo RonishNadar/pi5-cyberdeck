@@ -1,0 +1,15 @@
+[Unit]
+Description=Set Raspberry Pi Bluetooth address
+After=sys-subsystem-net-devices-wlan0.device
+Wants=sys-subsystem-net-devices-wlan0.device
+Before=bluetooth.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/bt-set-addr.sh
+StandardInput=null
+RemainAfterExit=yes
+TimeoutStartSec=25
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=Deck system warnings
+
+[Service]
+Type=oneshot
+ExecStart=%h/bin/deck-watch.sh

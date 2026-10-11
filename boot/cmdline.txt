@@ -1,0 +1,1 @@
+quiet splash plymouth.ignore-serial-consoles loglevel=3 systemd.show_status=false rd.udev.log_level=3 vt.global_cursor_default=0 consoleblank=0 drm.edid_firmware=HDMI-A-1:edid/1440x2560_50_audio.bin video=HDMI-A-1:1440x2560@50,rotate=90 console=serial0,115200 multipath=off dwc_otg.lpm_enable=0 console=tty1 root=LABEL=writable rootfstype=ext4 panic=10 rootwait fixrtc

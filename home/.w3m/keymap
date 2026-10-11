@@ -1,0 +1,13 @@
+keymap j MOVE_DOWN1
+keymap k MOVE_UP1
+keymap h MOVE_LEFT1
+keymap l MOVE_RIGHT1
+keymap J NEXT_PAGE
+keymap K PREV_PAGE
+keymap H BACK
+keymap o GOTO
+keymap t TAB_GOTO
+keymap x CLOSE_TAB
+keymap gt NEXT_TAB
+keymap gT PREV_TAB
+keymap r RELOAD

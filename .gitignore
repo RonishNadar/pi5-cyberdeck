@@ -1,0 +1,9 @@
+# Never commit secrets
+**/aerc/accounts.conf
+**/aerc/pass-*
+**/netplan/
+*.nmconnection
+# Python and editor leftovers
+__pycache__/
+*.pyc
+*.swp

@@ -1,0 +1,15 @@
+// Let the deck user reboot / power off without a password,
+// including from tmux tabs and while SSH sessions are open.
+polkit.addRule(function (action, subject) {
+  var ids = [
+    "org.freedesktop.login1.reboot",
+    "org.freedesktop.login1.reboot-multiple-sessions",
+    "org.freedesktop.login1.reboot-ignore-inhibit",
+    "org.freedesktop.login1.power-off",
+    "org.freedesktop.login1.power-off-multiple-sessions",
+    "org.freedesktop.login1.power-off-ignore-inhibit"
+  ];
+  if (ids.indexOf(action.id) >= 0 && subject.user == "admin") {
+    return polkit.Result.YES;
+  }
+});

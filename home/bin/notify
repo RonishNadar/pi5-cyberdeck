@@ -1,0 +1,40 @@
+#!/bin/sh
+# notify [-l info|ok|warn|error] [-s] [-t seconds] message...
+#   -l  level (sets color and label), default info
+#   -s  also play a sound
+#   -t  how long the banner stays, default 6 seconds
+level=info; sound=0; secs=6
+while getopts "l:st:" o; do
+  case $o in l) level=$OPTARG ;; s) sound=1 ;; t) secs=$OPTARG ;; esac
+done
+shift $((OPTIND - 1))
+msg="$*"; [ -z "$msg" ] && msg="(no message)"
+
+case $level in
+  ok)    bg="#50fa7b"; tag="DONE"  ;;
+  warn)  bg="#ffb86c"; tag="WARN"  ;;
+  error) bg="#ff5555"; tag="ERROR" ;;
+  *)     bg="#bd93f9"; tag="INFO"  ;;
+esac
+
+# Log every notification
+logdir=${XDG_STATE_HOME:-$HOME/.local/state}/deck
+mkdir -p "$logdir"
+printf '%s [%s] %s\n' "$(date '+%F %T')" "$tag" "$msg" >> "$logdir/notify.log"
+
+# Show on every attached tmux screen (deck panel and any SSH sessions in tmux)
+safe=$(printf '%s' "$msg" | sed 's/#/##/g')
+[ -f "$HOME/.config/deck/flags/no-banners" ] || for c in $(tmux list-clients -F '#{client_name}' 2>/dev/null); do
+  tmux display-message -c "$c" -d $((secs * 1000)) \
+    "#[fg=#282a36,bg=$bg,bold] $tag #[fg=#f8f8f2,bg=#44475a,nobold] $safe "
+done
+
+# Optional sound
+if [ "$sound" = 1 ] && [ ! -f "$HOME/.config/deck/flags/no-sounds" ]; then
+  case $level in
+    warn|error) f=/usr/share/sounds/freedesktop/stereo/dialog-warning.oga ;;
+    *)          f=/usr/share/sounds/freedesktop/stereo/complete.oga ;;
+  esac
+  [ -f "$f" ] && (pw-play "$f" >/dev/null 2>&1 &)
+fi
+exit 0

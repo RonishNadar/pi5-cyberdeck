@@ -1,0 +1,15 @@
+# Deck kiosk: one fullscreen foot terminal, nothing else
+output HDMI-A-1 mode 1440x2560@50Hz transform 270 bg #282a36 solid_color
+
+# Ring cursor, hidden after 5 seconds without use
+seat seat0 xcursor_theme DeckCircle 96
+seat seat0 hide_cursor 500
+
+default_border none
+default_floating_border none
+gaps inner 0
+gaps outer 0
+focus_follows_mouse no
+xwayland disable
+
+exec ~/bin/deck-session.sh

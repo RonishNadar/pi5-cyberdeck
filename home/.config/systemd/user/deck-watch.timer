@@ -1,0 +1,9 @@
+[Unit]
+Description=Run deck system warnings every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target

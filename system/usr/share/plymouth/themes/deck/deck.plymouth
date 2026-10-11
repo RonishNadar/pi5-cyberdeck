@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Deck
+Description=RONAD tech. boot screen
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/deck
+ScriptFile=/usr/share/plymouth/themes/deck/deck.script

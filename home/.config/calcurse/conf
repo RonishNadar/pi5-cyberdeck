@@ -1,0 +1,17 @@
+appearance.theme=magenta on default
+appearance.calendarview=monthly
+appearance.compactpanels=no
+appearance.sidebarwidth=40
+appearance.todoview=show-completed
+general.autosave=yes
+general.confirmquit=no
+general.confirmdelete=yes
+general.firstdayofweek=monday
+general.periodicsave=5
+notification.warning=600
+notification.command=/home/admin/bin/notify -l warn -s -t 15 "Calendar: appointment in 10 minutes"
+notification.notifyall=all
+daemon.enable=yes
+daemon.log=no
+format.outputdate=%a %d %b
+format.inputdate=4

@@ -1,0 +1,35 @@
+# Behavior
+auto-reload yes
+reload-time 30
+reload-threads 4
+refresh-on-startup yes
+show-read-feeds yes
+show-read-articles yes
+max-items 100
+browser "w3m %u"
+text-width 90
+confirm-exit no
+articlelist-format "%4i %f %D  %?T?|%-17T| ?%t"
+datetime-format "%b %d"
+
+# Vim-style navigation
+bind-key j down
+bind-key k up
+bind-key J next-feed articlelist
+bind-key K prev-feed articlelist
+bind-key G end
+bind-key g home
+bind-key l open
+bind-key h quit
+
+# Dracula colors
+color background          default  default
+color listnormal          color15  default
+color listnormal_unread   color6   default  bold
+color listfocus           color0   color5   bold
+color listfocus_unread    color0   color5   bold
+color info                color0   color4   bold
+color article             color15  default
+highlight article "^(Feed|Title|Author|Link|Date):" color5 default bold
+highlight article "https?://[^ ]+" color4 default underline
+highlight article "\\[[0-9]+\\]" color2 default bold

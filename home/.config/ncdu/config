@@ -1,0 +1,5 @@
+--color dark
+-x
+--exclude-kernfs
+--show-graph
+--show-percent

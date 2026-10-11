@@ -1,0 +1,12 @@
+// Let the deck user change time zone and time sync without a password.
+polkit.addRule(function (action, subject) {
+  var ids = [
+    "org.freedesktop.timedate1.set-timezone",
+    "org.freedesktop.timedate1.set-ntp",
+    "org.freedesktop.timedate1.set-time",
+    "org.freedesktop.timedate1.set-local-rtc"
+  ];
+  if (ids.indexOf(action.id) >= 0 && subject.user == "admin") {
+    return polkit.Result.YES;
+  }
+});

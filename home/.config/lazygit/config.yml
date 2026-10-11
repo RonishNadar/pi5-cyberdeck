@@ -1,0 +1,19 @@
+gui:
+  nerdFontsVersion: "3"
+  showIcons: true
+  border: rounded
+  theme:
+    activeBorderColor: ["#bd93f9", "bold"]
+    inactiveBorderColor: ["#6272a4"]
+    searchingActiveBorderColor: ["#f1fa8c", "bold"]
+    optionsTextColor: ["#8be9fd"]
+    selectedLineBgColor: ["#44475a"]
+    cherryPickedCommitBgColor: ["#44475a"]
+    cherryPickedCommitFgColor: ["#ff79c6"]
+    unstagedChangesColor: ["#ff5555"]
+    defaultFgColor: ["#f8f8f2"]
+git:
+  pagers:
+    - colorArg: always
+os:
+  editPreset: "nvim"
