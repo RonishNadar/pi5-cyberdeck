@@ -1,0 +1,24 @@
+use_nerdfont = true
+notify = false
+volnorm = true
+default_keybindings = true
+gapless = true
+
+[theme]
+background = "#282a36"
+primary = "#f8f8f2"
+secondary = "#6272a4"
+title = "#bd93f9"
+playing = "#50fa7b"
+playing_selected = "#50fa7b"
+playing_bg = "#282a36"
+highlight = "#282a36"
+highlight_bg = "#bd93f9"
+error = "#282a36"
+error_bg = "#ff5555"
+statusbar = "#282a36"
+statusbar_progress = "#ff79c6"
+statusbar_bg = "#bd93f9"
+cmdline = "#f8f8f2"
+cmdline_bg = "#44475a"
+search_match = "#ff79c6"

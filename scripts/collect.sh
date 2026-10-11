@@ -60,6 +60,7 @@ copy "$H/.config/cmus/rc"                           home/.config/cmus/rc
 copy "$H/.config/cmus/dracula.theme"                home/.config/cmus/dracula.theme
 copy "$H/.config/aerc/aerc.conf"                    home/.config/aerc/aerc.conf
 copy "$H/.config/termshark/termshark.toml"          home/.config/termshark/termshark.toml
+copy "/home/admin/.config/ncspot/config.toml"                 home/.config/ncspot/config.toml
 copy "$H/.w3m/config"                               home/.w3m/config
 copy "$H/.w3m/keymap"                               home/.w3m/keymap
 copy "$H/.config/systemd/user/deck-watch.service"   home/.config/systemd/user/deck-watch.service

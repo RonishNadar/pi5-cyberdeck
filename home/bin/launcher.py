@@ -26,6 +26,7 @@ APPS = [
     ("cam",   "\uf030", "Camera",    "photos and video",     "camera",   "~/bin/camera.py",                       "camera.py",  PINK),
     ("files", "\uf07c", "Files",     "yazi file manager",    "files",    "yazi",                                  "yazi",       CYAN),
     ("mon",   "\uf0e4", "Monitor",   "btop system monitor",  "monitor",  "btop",                                  "btop",       GREEN),
+    ("spotify", "\uf1bc", "Spotify",  "ncspot (Premium)",     "spotify",  "ncspot",                                "ncspot",     GREEN),
     ("music", "\uf001", "Music",     "cmus player",          "music",    "cmus",                                  "cmus",       YELLOW),
     ("mail",  "\uf0e0", "Mail",      "aerc email",           "mail",     "aerc",                                  "aerc",       PURPLE),
     ("news",  "\uf1ea", "News",      "newsboat feeds",       "news",     "newsboat",                              "newsboat",   CYAN),
