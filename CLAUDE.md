@@ -79,6 +79,11 @@ are editing the live system.
 - `camera.py`: GTK4 app `tech.ronad.Camera`, MJPEG preview from `rpicam-vid` (sensor mode
   `2304:1296:10:P`), photos with `rpicam-still`, video with ffmpeg copy to .mkv, saved in
   `~/Pictures/Camera`.
+- `tube.py`: YouTube via yt-dlp (pip, in the deck venv; needs `deno` in `~/.local/bin` or
+  `/usr/local/bin`) and mpv (+ mpv-mpris). Search is yt-dlp `ytsearch`, subscriptions are channel RSS
+  feeds (no Google login). Background audio is a detached mpv with IPC socket
+  `/run/user/1000/deck-tube.sock`. State: `~/.config/deck/youtube.json`,
+  `~/.local/share/deck/youtube-history.json`. `deck-media.sh` sends media keys to the playing player.
 - `deck-battery` (INA228 over raw `/dev/i2c-1`, stdlib only; prints nothing without the sensor),
   `lanscan.py` (nmap TUI), `notify` (tmux banners + sounds, honors `~/.config/deck/flags/*`),
   `deck-watch.sh` (user timer: temp, disk, undervoltage), `deck-footer.sh`, `deck-status.sh`,

@@ -47,7 +47,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt install -y \
   ncdu calcurse newsboat w3m cmus aerc \
   nmap tcpdump tshark termshark \
   plymouth plymouth-themes edid-decode \
-  playerctl pkg-config libasound2-dev libssl-dev libpulse-dev libdbus-1-dev
+  mpv mpv-mpris playerctl pkg-config libasound2-dev libssl-dev libpulse-dev libdbus-1-dev
 
 say "Packages that may or may not exist in your Ubuntu release"
 for p in glow lazygit fonts-league-gothic; do
@@ -58,6 +58,8 @@ say "Tools from GitHub releases"
 install_from_tarball yazi      sxyazi/yazi              'aarch64-unknown-linux-gnu\.zip$'
 install_from_tarball bluetuith bluetuith-org/bluetuith  'linux.*arm64.*\.tar\.gz$'
 install_from_tarball bandwhich imsnif/bandwhich         'aarch64-unknown-linux-musl\.tar\.gz$'
+# deno: yt-dlp needs a JavaScript runtime for YouTube
+install_from_tarball deno      denoland/deno            'deno-aarch64-unknown-linux-gnu\.zip$'
 command -v glow    >/dev/null || install_from_tarball glow    charmbracelet/glow       'Linux_arm64\.tar\.gz$'
 command -v lazygit >/dev/null || install_from_tarball lazygit jesseduffield/lazygit 'Linux_arm64\.tar\.gz$'
 command -v bandwhich >/dev/null && sudo setcap cap_sys_ptrace,cap_dac_read_search,cap_net_raw,cap_net_admin+ep "$(command -v bandwhich)"
@@ -80,7 +82,7 @@ command -v starship >/dev/null || curl -sS https://starship.rs/install.sh | sh -
 
 say "Python environment for the deck apps (Textual)"
 [ -x ~/.venvs/deck/bin/python ] || python3 -m venv ~/.venvs/deck
-~/.venvs/deck/bin/pip install --quiet --upgrade pip textual requests
+~/.venvs/deck/bin/pip install --quiet --upgrade pip textual requests "yt-dlp[default]"
 
 say "spotifyd (Spotify Connect speaker; built from source, the release binary needs OpenSSL 1.1)"
 if ! command -v spotifyd >/dev/null; then

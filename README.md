@@ -32,6 +32,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
   - [11. Camera](#11-camera)
 - [Using the deck](#using-the-deck)
 - [Spotify](#spotify)
+- [YouTube](#youtube)
 - [Books](#books)
 - [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -118,6 +119,7 @@ pi5-cyberdeck/
 │       ├── camera.py                camera app
 │       ├── lanscan.py               LAN scanner
 │       ├── reader.py                Books e-reader
+│       ├── tube.py                  YouTube
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
 │   ├── usr/local/bin/touch-mouse.py, bt-set-addr.sh
@@ -343,7 +345,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -391,6 +393,30 @@ Notes:
 - The audio cache is turned off (`no_audio_cache = true`). A corrupted cached file made spotifyd skip through songs silently.
 - Spotify logins are never collected into this repo (`~/.config/deck/spotify*.json`, `~/.cache/spotifyd/oauth`).
 
+
+## YouTube
+
+`tube.py` (the **YouTube** entry in Apps) searches and plays YouTube without a Google account. **yt-dlp** finds and streams the videos, **mpv** plays them, and **Deno** runs YouTube's player JavaScript for yt-dlp. Videos open full screen in mpv; press `q` there to come back. Audio can also play in the background while you use other tabs.
+
+- **Subscriptions** come from each channel's public RSS feed, so they need no login. They are kept in `~/.config/deck/youtube.json`. History (the last 200 videos) is in `~/.local/share/deck/youtube-history.json`.
+- **Quality** defaults to 720p H.264. The Pi 5 decodes H.264 in software (it has no H.264 hardware decoder), and H.264 is the cheapest format for it. Change `"quality"` in `youtube.json`. Set `"hide_shorts": true` to hide Shorts.
+- **Downloads** go to `~/Videos/YouTube` (video, .mkv) and `~/Music/YouTube` (audio, .m4a, playable in cmus).
+- **Media keys** F6 to F8 now control whichever player is playing, so they work for YouTube audio (through mpv-mpris) as well as Spotify.
+- When YouTube changes something and playback breaks, update yt-dlp: `~/.venvs/deck/bin/pip install -U "yt-dlp[default]"`.
+
+| Key | Action |
+|---|---|
+| `Enter` `Right` | watch full screen |
+| `a` | listen in the background |
+| `d` / `D` | download video / audio only |
+| `s` / `c` | subscribe or unsubscribe the channel / open the channel |
+| `Space` `,` `.` `-` `+` `x` | pause, seek 10 seconds, volume, stop (background audio) |
+| `1` `2` `3` | subscriptions, search, history |
+| `/` | search |
+| `Left` `Esc` | back |
+| `?` | all keys |
+
+In the mpv player: `Space` pause, `Left`/`Right` seek 5 seconds, `Up`/`Down` seek 1 minute, `9`/`0` volume, `f` full screen, `q` back to the list.
 
 ## Books
 
