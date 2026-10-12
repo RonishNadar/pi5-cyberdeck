@@ -398,21 +398,29 @@ Notes:
 
 `tube.py` (the **YouTube** entry in Apps) searches and plays YouTube without a Google account. **yt-dlp** finds and streams the videos, **mpv** plays them, and **Deno** runs YouTube's player JavaScript for yt-dlp. Videos open full screen in mpv; press `q` there to come back. Audio can also play in the background while you use other tabs.
 
-- **Subscriptions** come from each channel's public RSS feed, so they need no login. They are kept in `~/.config/deck/youtube.json`. History (the last 200 videos) is in `~/.local/share/deck/youtube-history.json`.
+There are five views: **Subscriptions**, **Search**, **History**, **Playlists** and **Queue**. Switch with `1` to `5`, or `Tab` and `Shift+Tab` (these work from the search box too).
+
+- **Subscriptions** come from each channel's public RSS feed, so they need no login. To bring over your YouTube subscriptions, get `subscriptions.csv` from Google Takeout (select only "YouTube and YouTube Music", then "subscriptions"), copy it to `~/Downloads`, and press `I` (or run `tube.py --import FILE`).
+- **Queue:** `a` listens now, `e` adds to the queue. Background audio keeps playing after you leave the app. The Queue view shows what is next; `Enter` jumps to an item and `Delete` removes it.
+- **Playlists** are saved on the deck. `l` adds a video to one (or makes a new one), `A` listens to a whole playlist.
+- **Settings and data:** subscriptions, playlists and options are in `~/.config/deck/youtube.json`. History (the last 200 videos) is in `~/.local/share/deck/youtube-history.json`.
 - **Quality** defaults to 720p H.264. The Pi 5 decodes H.264 in software (it has no H.264 hardware decoder), and H.264 is the cheapest format for it. Change `"quality"` in `youtube.json`. Set `"hide_shorts": true` to hide Shorts.
 - **Downloads** go to `~/Videos/YouTube` (video, .mkv) and `~/Music/YouTube` (audio, .m4a, playable in cmus).
-- **Media keys** F6 to F8 now control whichever player is playing, so they work for YouTube audio (through mpv-mpris) as well as Spotify.
+- **Media keys** F6 to F8 control whichever player is playing (then whichever is paused, then Spotify), so they work for YouTube audio through mpv-mpris.
 - When YouTube changes something and playback breaks, update yt-dlp: `~/.venvs/deck/bin/pip install -U "yt-dlp[default]"`.
 
 | Key | Action |
 |---|---|
-| `Enter` `Right` | watch full screen |
-| `a` | listen in the background |
+| `Enter` `Right` | watch full screen (in Playlists: open; in Queue: play that item) |
+| `a` / `e` | listen now / add to the queue |
+| `l` / `A` | add to a playlist / listen to the whole playlist |
 | `d` / `D` | download video / audio only |
 | `s` / `c` | subscribe or unsubscribe the channel / open the channel |
-| `Space` `,` `.` `-` `+` `x` | pause, seek 10 seconds, volume, stop (background audio) |
-| `1` `2` `3` | subscriptions, search, history |
-| `/` | search |
+| `Space` `,` `.` `-` `+` | pause, seek 10 seconds, volume (background audio) |
+| `n` `p` `x` | next, previous, stop |
+| `Delete` | remove from playlist, queue or history; delete a playlist |
+| `1` to `5`, `Tab` | switch views |
+| `/` `I` `r` | search, import subscriptions, refresh |
 | `Left` `Esc` | back |
 | `?` | all keys |
 
