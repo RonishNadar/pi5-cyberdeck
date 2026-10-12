@@ -32,6 +32,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
   - [11. Camera](#11-camera)
 - [Using the deck](#using-the-deck)
 - [Spotify](#spotify)
+- [Books](#books)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [How it fits together](#how-it-fits-together)
 - [Troubleshooting](#troubleshooting)
@@ -113,6 +114,7 @@ pi5-cyberdeck/
 │       ├── notify                   header notifications
 │       ├── camera.py                camera app
 │       ├── lanscan.py               LAN scanner
+│       ├── reader.py                Books e-reader
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
 │   ├── usr/local/bin/touch-mouse.py, bt-set-addr.sh
@@ -338,7 +340,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -385,6 +387,30 @@ Notes:
 - `use_mpris = true` in `spotifyd.conf` plus `playerctl` lets play/pause, skip, seek and volume go straight to spotifyd over D-Bus, which is instant.
 - The audio cache is turned off (`no_audio_cache = true`). A corrupted cached file made spotifyd skip through songs silently.
 - Spotify logins are never collected into this repo (`~/.config/deck/spotify*.json`, `~/.cache/spotifyd/oauth`).
+
+
+## Books
+
+`reader.py` (the **Books** entry in Apps) is a paged e-reader. It reads EPUB, plain text, Markdown, and PDF (text only, through `pdftotext`) from `~/Books`, including subfolders. Pages flip instead of scroll, text is justified in a centered column, and each chapter shows a progress bar, the page number and the reading time left.
+
+**Library:** books you opened most recently come first, with author and progress. `Enter` or `Right` opens a book, `g` gets free books from Project Gutenberg (search, then `Enter` downloads the EPUB into `~/Books`), `d` deletes, `r` rescans.
+
+| Key | Reading |
+|---|---|
+| `Right` `Space` `Down`, tap the right two thirds | next page |
+| `Left` `Up`, tap the left third | previous page |
+| `]` `[` | next / previous chapter |
+| `t` | contents |
+| `b` / `m` | bookmark this page / list bookmarks |
+| `/` / `n` | search / next match |
+| `g` | go to a percentage |
+| `+` `-` | line width |
+| `a` | theme: Dracula, Night (dim gray on black, since the panel has no brightness control), Paper |
+| `J` / `s` | justify on or off / spaced or indented paragraphs |
+| `?` | key help |
+| `Esc` `q` | back to the library |
+
+Reading positions, bookmarks and settings are saved in `~/.config/deck/reader.json`. Positions are stored as a place in the text, not a page number, so changing the width or theme keeps your place. Plain text from Gutenberg is trimmed to the book itself, and its chapters are detected from the `CHAPTER` headings.
 
 ## Keyboard shortcuts
 

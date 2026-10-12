@@ -30,6 +30,7 @@ APPS = [
     ("files", "\uf07c", "Files",     "yazi file manager",    "files",    "yazi",                                  "yazi",       CYAN),
     ("mon",   "\uf0e4", "Monitor",   "btop system monitor",  "monitor",  "btop",                                  "btop",       GREEN),
     ("spotify", "\uf1bc", "Spotify",   "spot, keyboard player", "spotify", f"{HOME}/bin/spot.py", "spot.py", GREEN),
+    ("books", "\uf02d", "Books",     "e-reader",             "books",    f"{HOME}/bin/reader.py",                 "reader.py",  CYAN),
     ("music", "\uf001", "Music",     "cmus player",          "music",    "cmus",                                  "cmus",       YELLOW),
     ("mail",  "\uf0e0", "Mail",      "aerc email",           "mail",     "aerc",                                  "aerc",       PURPLE),
     ("news",  "\uf1ea", "News",      "newsboat feeds",       "news",     "newsboat",                              "newsboat",   CYAN),

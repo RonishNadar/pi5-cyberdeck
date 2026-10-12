@@ -64,7 +64,7 @@ sudo systemctl restart polkit
 systemctl --user daemon-reload
 systemctl --user enable --now pipewire pipewire-pulse wireplumber deck-watch.timer 2>/dev/null
 command -v spotifyd >/dev/null && systemctl --user enable --now spotifyd 2>/dev/null
-mkdir -p ~/.config/deck/flags ~/projects ~/Downloads ~/Music ~/Pictures
+mkdir -p ~/.config/deck/flags ~/projects ~/Downloads ~/Music ~/Pictures ~/Books
 
 say "Boot splash theme"
 if [ -f /usr/share/plymouth/themes/deck/deck.plymouth ]; then
