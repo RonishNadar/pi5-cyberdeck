@@ -397,8 +397,9 @@ Notes:
 
 | Key | Reading |
 |---|---|
-| `Right` `Space` `Down`, tap the right two thirds | next page |
-| `Left` `Up`, tap the left third | previous page |
+| `Right` `Space`, tap the right two thirds | next page |
+| `Left`, tap the left third | previous page |
+| `Down` `Up`, mouse wheel | scroll one line (crosses into the next or previous chapter at the edges) |
 | `]` `[` | next / previous chapter |
 | `t` | contents |
 | `b` / `m` | bookmark this page / list bookmarks |

@@ -2,7 +2,7 @@
 """Deck e-reader: paged reading of EPUB, TXT, Markdown and PDF (text) books from ~/Books.
 
 Library: Up/Down pick, Right/Enter open, g get books (Project Gutenberg), d delete, r rescan.
-Reading: Right/Space/Down next page, Left/Up previous, t contents, b bookmark, m bookmarks,
+Reading: Right/Space next page, Left previous, Up/Down scroll a line, t contents, b bookmark, m bookmarks,
 / search, n next match, [ ] chapter, +/- width, a theme, j justify, ? help, Esc back.
 Tap the right two thirds of the page for next, the left third for previous.
 """
@@ -649,8 +649,10 @@ def _pre_lines(t, width):
 # ---------- reader ----------
 class ReaderScreen(Screen):
     BINDINGS = [
-        Binding("right,space,down,pagedown,l,j", "page(1)", "Next", show=False),
-        Binding("left,up,pageup,h,k,shift+space", "page(-1)", "Prev", show=False),
+        Binding("right,space,pagedown,l", "page(1)", "Next", show=False),
+        Binding("left,pageup,h,shift+space", "page(-1)", "Prev", show=False),
+        Binding("down,j", "scroll(1)", "Line down", show=False),
+        Binding("up,k", "scroll(-1)", "Line up", show=False),
         Binding("home", "chapter_start", show=False),
         Binding("bracketright", "chapter(1)", show=False),
         Binding("bracketleft", "chapter(-1)", show=False),
@@ -716,15 +718,14 @@ class ReaderScreen(Screen):
         self.seek(*self.anchor)
 
     def seek(self, block, off):
-        """Show the page that contains (block, offset), with pages aligned to the chapter start."""
+        """Put the line holding (block, offset) at the top, or as high as it can go near the end."""
         idx = 0
         for i, ln in enumerate(self.lines):
             if (ln.block, ln.offset) <= (block, off):
                 idx = i
             else:
                 break
-        h = self.page_height()
-        self.page_start = (idx // h) * h
+        self.page_start = min(idx, max(0, len(self.lines) - self.page_height()))
         self.render_page()
 
     def remember(self):
@@ -732,7 +733,10 @@ class ReaderScreen(Screen):
         self.anchor = (ln.block, ln.offset)
         self.rec.update(ch=self.ch, block=ln.block, off=ln.offset,
                         pct=round(self.progress() * 100, 1), opened=time.time())
-        self.state.save()
+        # Holding a key fires many moves; write the file once things settle.
+        if getattr(self, "_save_timer", None):
+            self._save_timer.stop()
+        self._save_timer = self.set_timer(0.5, self.state.save)
 
     def progress(self):
         end = min(len(self.lines), self.page_start + self.page_height())
@@ -764,11 +768,12 @@ class ReaderScreen(Screen):
         self.query_one("#head").update(Text.assemble(left, " " * max(2, w - len(left.plain) - len(right.plain)), right))
 
         pages = max(1, -(-len(self.lines) // h))
-        cur = self.page_start // h + 1
+        cur = min(pages, -(-self.page_start // h) + 1)
+        at_end = self.page_start + h >= len(self.lines)
         pct = self.progress()
         words_left = self.book.chapter(self.ch).words * (1 - min(1, (self.page_start + h) / len(self.lines)))
         mins = round(words_left / WPM)
-        left_txt = "end of chapter" if cur >= pages else (f"{mins} min left in chapter" if mins else "under a minute left")
+        left_txt = "end of chapter" if at_end else (f"{mins} min left in chapter" if mins else "under a minute left")
         info = Text.assemble((f"{pct * 100:.0f}%", f"bold {head}"), ("   ", ""),
                              (f"page {cur} of {pages}", dim), ("   ", ""), (left_txt, dim))
         if any(b["ch"] == self.ch and self.page_start <= self._line_of(b) < self.page_start + h
@@ -800,8 +805,7 @@ class ReaderScreen(Screen):
         self.ch = max(0, min(len(self.book) - 1, ch))
         self.lines = layout(self.book.chapter(self.ch), self.width, self.state.prefs, self.theme)
         if end:
-            h = self.page_height()
-            self.page_start = ((len(self.lines) - 1) // h) * h
+            self.page_start = max(0, len(self.lines) - self.page_height())
             self.render_page()
         else:
             self.seek(block, off)
@@ -810,6 +814,8 @@ class ReaderScreen(Screen):
     def action_page(self, d):
         h = self.page_height()
         nxt = self.page_start + d * h
+        if d < 0 and self.page_start > 0:
+            nxt = max(0, nxt)
         if 0 <= nxt < len(self.lines):
             self.page_start = nxt
             self.render_page()
@@ -820,6 +826,21 @@ class ReaderScreen(Screen):
             self.goto_chapter(self.ch - 1, end=True)
         elif d > 0:
             self.notify("The end.", timeout=2)
+
+    def action_scroll(self, d):
+        h = self.page_height()
+        if d > 0 and self.page_start + h < len(self.lines):
+            self.page_start += 1
+        elif d < 0 and self.page_start > 0:
+            self.page_start -= 1
+        elif d > 0 and self.ch < len(self.book) - 1:
+            return self.goto_chapter(self.ch + 1)
+        elif d < 0 and self.ch > 0:
+            return self.goto_chapter(self.ch - 1, end=True)
+        else:
+            return
+        self.render_page()
+        self.remember()
 
     def action_chapter(self, d):
         # jump between toc entries when there are any, otherwise between files
@@ -842,13 +863,14 @@ class ReaderScreen(Screen):
             self.action_page(1)
 
     def on_mouse_scroll_down(self, _):
-        self.action_page(1)
+        self.action_scroll(1)
 
     def on_mouse_scroll_up(self, _):
-        self.action_page(-1)
+        self.action_scroll(-1)
 
     def action_close(self):
         self.remember()
+        self.state.save()
         self.app.pop_screen()
 
     # --- settings ---
@@ -1079,7 +1101,8 @@ class Prompt(ModalScreen):
 
 HELP = [
     ("Next page", "Right  Space  tap right"),
-    ("Previous page", "Left  Up  tap left"),
+    ("Previous page", "Left  tap left"),
+    ("Scroll one line", "Up  Down"),
     ("Next / previous chapter", "]  ["),
     ("Contents", "t"),
     ("Bookmark this page", "b"),
