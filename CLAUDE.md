@@ -12,12 +12,14 @@ are editing the live system.
 - Camera: IMX708 Wide NoIR (Camera Module 3 type) on **CAM1**. It reports module ID 0x0000, so the
   tuning file is forced to `imx708_wide_noir.json`.
 - USB keyboard with media F keys. Audio comes out of the panel's 3.5 mm jack over HDMI.
-- Power: the current supply is weak (the camera once caused a brown-out). Planned: 2S LiPo
-  (2 x 3.7 V 10000 mAh), a 2S boost charger plus 2S BMS, a 5 A fuse, a switch, a TPS565201 buck set to
-  5.1 V, a USB-C pigtail to the Pi, and an INA219 on I2C (0x40, pins 1/3/5/6) wired voltage-only
-  (VIN+ and VIN- joined). Update 2026-10-12: the owner now plans an **INA228** (also 0x40) on a
-  3.7 V 10000 mAh battery; `~/bin/deck-battery` reads it (cells and shunt set in
-  `~/.config/deck/battery.json`). 1S vs 2S is not settled yet. Nothing can mount under the Pi, because the display is there.
+- Power: the current supply is weak (the camera once caused a brown-out). Planned (changed
+  2026-10-12): a **1S** Li-ion/LiPo cell, 3.7 V 10000 mAh, with an **INA228** on I2C (0x40, pins
+  1/3/5/6). `~/bin/deck-battery` reads it (defaults `cells: 1`, 0.015 ohm shunt; overrides in
+  `~/.config/deck/battery.json`). The older 2S plan (2S charger and BMS, TPS565201 buck to 5.1 V,
+  INA219) is dropped: a buck cannot make 5.1 V from one cell, so 1S needs a boost converter good for
+  about 5.1 V 5 A (roughly 8 A from the cell at full load). Charger, protection and boost parts are not
+  chosen yet; keep the 5 A fuse, switch and USB-C pigtail to the Pi. Nothing can mount under the Pi,
+  because the display is there.
 
 ## Boot and display (Ubuntu-specific gotchas)
 - Ubuntu boots the Pi with `os_prefix=current/`. The kernel cmdline that is actually used is
