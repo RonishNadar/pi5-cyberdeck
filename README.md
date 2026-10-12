@@ -407,7 +407,7 @@ After scrolling by line, `Right` and `Left` snap back to the top of the next or 
 | `b` / `m` | bookmark this page / list bookmarks |
 | `/` / `n` | search / next match |
 | `g` | go to a percentage |
-| `v` | view: Single (one centered column), Fit (full screen width), Split (two pages side by side, turned together) |
+| `v` | view: Single (one centered column) or Fit (full screen width) |
 | `f` | focus: hide the header and footer |
 | `+` `-` | line width (switches back to Single view) |
 | `a` | theme: Dracula, Night (dim gray on black, since the panel has no brightness control), Paper |
