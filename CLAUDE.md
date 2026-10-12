@@ -15,7 +15,9 @@ are editing the live system.
 - Power: the current supply is weak (the camera once caused a brown-out). Planned: 2S LiPo
   (2 x 3.7 V 10000 mAh), a 2S boost charger plus 2S BMS, a 5 A fuse, a switch, a TPS565201 buck set to
   5.1 V, a USB-C pigtail to the Pi, and an INA219 on I2C (0x40, pins 1/3/5/6) wired voltage-only
-  (VIN+ and VIN- joined). Nothing can mount under the Pi, because the display is there.
+  (VIN+ and VIN- joined). Update 2026-10-12: the owner now plans an **INA228** (also 0x40) on a
+  3.7 V 10000 mAh battery; `~/bin/deck-battery` reads it (cells and shunt set in
+  `~/.config/deck/battery.json`). 1S vs 2S is not settled yet. Nothing can mount under the Pi, because the display is there.
 
 ## Boot and display (Ubuntu-specific gotchas)
 - Ubuntu boots the Pi with `os_prefix=current/`. The kernel cmdline that is actually used is
@@ -75,7 +77,8 @@ are editing the live system.
 - `camera.py`: GTK4 app `tech.ronad.Camera`, MJPEG preview from `rpicam-vid` (sensor mode
   `2304:1296:10:P`), photos with `rpicam-still`, video with ffmpeg copy to .mkv, saved in
   `~/Pictures/Camera`.
-- `lanscan.py` (nmap TUI), `notify` (tmux banners + sounds, honors `~/.config/deck/flags/*`),
+- `deck-battery` (INA228 over raw `/dev/i2c-1`, stdlib only; prints nothing without the sensor),
+  `lanscan.py` (nmap TUI), `notify` (tmux banners + sounds, honors `~/.config/deck/flags/*`),
   `deck-watch.sh` (user timer: temp, disk, undervoltage), `deck-footer.sh`, `deck-status.sh`,
   `deck-media.sh`, `make-logo.sh`.
 
@@ -128,8 +131,9 @@ are editing the live system.
 - Ask before rebooting, restarting the display, or anything that could drop the network.
 
 ## Open items
-- Battery build: wire it, then add a battery footer block, a Battery entry in Settings, low-battery
-  warnings, and a clean shutdown at about 6.4 V (INA219 bus voltage register 0x02).
+- Battery build: wire it. The footer block (`bat`, via `deck-battery --short`) is done. Still to do: a
+  Battery entry in Settings, low-battery warnings, and a clean shutdown at a low cell voltage
+  (about 3.2 V per cell; INA228 VBUS register 0x05).
 - After the 5 A power source: `PSU_MAX_CURRENT=5000` in EEPROM (`rpi-eeprom-config --apply`), remove
   `arm_freq=1800`, restore the camera preview to 1536x864 at 30 fps.
 - Power button: momentary switch on the Pi 5 J2 (PWR_BTN) header, logind `HandlePowerKey=poweroff`,

@@ -27,7 +27,8 @@ ACCENTS = [("Purple", PURPLE), ("Pink", PINK), ("Cyan", CYAN), ("Green", GREEN),
            ("Orange", ORANGE), ("Yellow", YELLOW), ("Red", RED)]
 FOOTER_BLOCKS = [("cal", "\uf073", "Calendar", "next appointment"), ("ip", "\uf0e8", "IP address", ""),
                  ("cpu", "\uf2db", "CPU", "usage and temperature"), ("mem", "\U000f035b", "Memory", ""),
-                 ("disk", "\uf0a0", "Disk", ""), ("up", "\uf017", "Uptime", ""), ("weather", "\uf0c2", "Weather", "")]
+                 ("disk", "\uf0a0", "Disk", ""), ("up", "\uf017", "Uptime", ""), ("weather", "\uf0c2", "Weather", ""),
+                 ("bat", "\uf240", "Battery", "INA228, hidden until connected")]
 NOTIFY_FLAGS = [("no-banners", "\uf0f3", "Banners", "alerts in the header"),
                 ("no-sounds", "\uf028", "Sounds", "alert sounds"),
                 ("no-long-alerts", "\uf254", "Long command alerts", "commands over 30 seconds")]

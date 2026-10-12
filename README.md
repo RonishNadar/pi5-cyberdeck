@@ -33,6 +33,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - [Using the deck](#using-the-deck)
 - [Spotify](#spotify)
 - [Books](#books)
+- [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [How it fits together](#how-it-fits-together)
 - [Troubleshooting](#troubleshooting)
@@ -48,7 +49,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - **Touch that behaves like a mouse.** Tap to click, drag to select, long-press for right click, with a ring cursor that grows when you touch and hides after half a second.
 - **Three tabs at boot:** `main` (a shell), `apps` (a text menu that opens apps in their own tabs), `settings` (Wi-Fi, Bluetooth, sound, display, date and time, notifications, footer, theme, about, updates, power).
 - **Dracula theme** across foot, tmux, Starship, Neovim, yazi, lazygit, btop, cmus, newsboat, aerc, termshark and the menus, with a selectable accent color.
-- **A header and a footer.** Header: tabs, Wi-Fi name, date and time. Footer: next appointment, IP, CPU, memory, disk, uptime, weather. Each block can be turned on and off.
+- **A header and a footer.** Header: tabs, Wi-Fi name, date and time. Footer: next appointment, IP, CPU, memory, disk, uptime, weather, battery. Each block can be turned on and off.
 - **Notifications** in the header (with sounds) for long-running commands, calendar reminders, high temperature, a full disk or undervoltage.
 - **HDMI audio** through the panel's 3.5 mm jack, plus Bluetooth headphones.
 - **Remote access** over SSH (`cyberdeck.local`) and optionally Tailscale.
@@ -63,6 +64,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 | **microSD card, 32 GB or more** | A1/A2 rated | |
 | **USB keyboard** | Needed for typing; touch covers everything else | |
 | **Camera Module 3 Wide NoIR (IMX708)** (optional), on **CAM1** | 12 MP, autofocus, HDR, no IR filter (night vision). Needs a 22-pin Pi 5 camera cable. | [Camera docs](https://www.raspberrypi.com/documentation/accessories/camera.html), [Ubuntu camera guide](https://ubuntu.com/hardware/docs/boards/how-to/special_hardware/rpi-camera/) |
+| **INA228 power monitor** (optional, for the battery) | I2C at 0x40 on pins 1 (3.3 V), 3 (SDA), 5 (SCL), 6 (GND). Measures pack voltage and, with its shunt in the battery line, current. | [TI INA228](https://www.ti.com/product/INA228) |
 | **Headphones or speaker** (optional) | Plug into the panel's 3.5 mm jack, or use Bluetooth | |
 
 **Wiring**
@@ -110,6 +112,7 @@ pi5-cyberdeck/
 │       ├── deck_net.py              Wi-Fi and Bluetooth menus
 │       ├── deck_prefs.py            date/time, notifications, footer, theme menus
 │       ├── deck-footer.sh           footer blocks
+│       ├── deck-battery             battery level from the INA228
 │       ├── deck-watch.sh            temperature, disk and power warnings
 │       ├── notify                   header notifications
 │       ├── camera.py                camera app
@@ -416,6 +419,24 @@ After scrolling by line, `Right` and `Left` snap back to the top of the next or 
 | `Esc` `q` | back to the library |
 
 Reading positions, bookmarks and settings are saved in `~/.config/deck/reader.json`. Positions are stored as a place in the text, not a page number, so changing the width or theme keeps your place. Plain text from Gutenberg is trimmed to the book itself, and its chapters are detected from the `CHAPTER` headings.
+
+## Battery
+
+`~/bin/deck-battery` reads an INA228 power monitor over I2C and feeds the **BAT** block at the right end of the footer. The block stays hidden until the sensor answers, so nothing changes before it is wired.
+
+- **Footer:** `BAT 82% 3h20m` while discharging, a bolt while charging. Green from 50%, yellow from 20%, red below.
+- **Level:** pack voltage per cell on a Li-ion discharge curve (3.27 V empty, 4.20 V full), averaged over recent readings. When current is measured, the voltage sag under load is added back first, and time left is the remaining charge divided by the current draw.
+- **Report:** run `deck-battery` for voltage, current, power, time left and sensor temperature. `deck-battery --json` gives the same as JSON.
+- **Settings:** optional, in `~/.config/deck/battery.json`. The defaults suit a single 3.7 V 10000 mAh cell and the usual 0.015 ohm shunt on INA228 breakout boards:
+
+```json
+{"bus": 1, "address": 64, "cells": 1, "capacity_mah": 10000,
+ "shunt_ohms": 0.015, "invert_current": false, "internal_ohms": 0.05}
+```
+
+  Set `cells` to 2 for a 2S pack, `shunt_ohms` to 0 if the sensor only measures voltage, and `invert_current` to true if charging shows as discharging.
+- **Preview without the sensor:** `DECK_BATTERY_FAKE="3.85,1.2" deck-battery` (volts, amps; positive amps = discharging).
+- **Access:** `/dev/i2c-1` belongs to the `dialout` group. `install-files.sh` adds you to it (it takes effect after the next login), since the seat permission alone does not cover sessions started over SSH.
 
 ## Keyboard shortcuts
 

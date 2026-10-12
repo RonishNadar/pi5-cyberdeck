@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""Battery level from an INA228 power monitor on I2C. Standard library only.
+
+  deck-battery            readable report
+  deck-battery --short    "PCT STATE TIME" for the footer, e.g. "82 discharging 3h20m"
+                          (STATE: discharging, charging, idle). Prints nothing if no sensor.
+  deck-battery --json     everything as JSON
+
+Settings (all optional) in ~/.config/deck/battery.json:
+  bus 1, address 64 (0x40), cells 1 (cells in series), capacity_mah 10000,
+  shunt_ohms 0.015 (0 = voltage only), invert_current false (true if charging reads as discharging),
+  internal_ohms 0.05 (pack + wiring resistance, used to correct voltage sag under load).
+For testing without the sensor: DECK_BATTERY_FAKE="3.85" or "3.85,1.2" (volts, amps; + = discharging).
+"""
+import fcntl
+import json
+import os
+import sys
+import time
+
+CFG = os.path.expanduser("~/.config/deck/battery.json")
+CACHE = f"/run/user/{os.getuid()}/deck-battery.json"
+DEFAULTS = {"bus": 1, "address": 0x40, "cells": 1, "capacity_mah": 10000, "shunt_ohms": 0.015,
+            "invert_current": False, "internal_ohms": 0.05}
+
+I2C_SLAVE = 0x0703
+REG_VSHUNT, REG_VBUS, REG_DIETEMP = 0x04, 0x05, 0x06
+REG_MANUFACTURER, REG_DEVICE = 0x3E, 0x3F
+VBUS_LSB = 195.3125e-6      # volts per bit
+VSHUNT_LSB = 312.5e-9       # volts per bit with ADCRANGE = 0 (the power-on default)
+TEMP_LSB = 7.8125e-3        # degrees C per bit
+IDLE_AMPS = 0.02            # below this the battery is neither charging nor discharging
+SMOOTH = 0.3                # weight of a new reading (the footer polls every 5 seconds)
+
+# Resting voltage of one Li-ion / LiPo cell against charge left, in percent.
+CURVE = [(3.27, 0), (3.61, 5), (3.69, 10), (3.71, 15), (3.73, 20), (3.75, 25), (3.77, 30),
+         (3.79, 35), (3.80, 40), (3.82, 45), (3.84, 50), (3.85, 55), (3.87, 60), (3.91, 65),
+         (3.95, 70), (3.98, 75), (4.02, 80), (4.08, 85), (4.11, 90), (4.15, 95), (4.20, 100)]
+
+
+def config():
+    c = dict(DEFAULTS)
+    try:
+        with open(CFG) as f:
+            c.update(json.load(f))
+    except (OSError, ValueError):
+        pass
+    if isinstance(c["address"], str):
+        c["address"] = int(c["address"], 0)
+    return c
+
+
+def read_reg(fd, reg, size):
+    os.write(fd, bytes([reg]))
+    return int.from_bytes(os.read(fd, size), "big")
+
+
+def signed(v, bits):
+    return v - (1 << bits) if v & (1 << (bits - 1)) else v
+
+
+def sample(c):
+    """Return (volts, amps, die_temp) or None when no INA228 answers."""
+    fake = os.environ.get("DECK_BATTERY_FAKE")
+    if fake:
+        parts = [float(x) for x in fake.split(",")]
+        return parts[0], (parts[1] if len(parts) > 1 else 0.0), None
+    try:
+        fd = os.open(f"/dev/i2c-{c['bus']}", os.O_RDWR)
+    except OSError:
+        return None
+    try:
+        fcntl.ioctl(fd, I2C_SLAVE, c["address"])
+        if read_reg(fd, REG_MANUFACTURER, 2) != 0x5449 or read_reg(fd, REG_DEVICE, 2) >> 4 != 0x228:
+            return None
+        volts = (read_reg(fd, REG_VBUS, 3) >> 4) * VBUS_LSB
+        amps = 0.0
+        if c["shunt_ohms"]:
+            amps = signed(read_reg(fd, REG_VSHUNT, 3) >> 4, 20) * VSHUNT_LSB / c["shunt_ohms"]
+            if c["invert_current"]:
+                amps = -amps
+        temp = signed(read_reg(fd, REG_DIETEMP, 2), 16) * TEMP_LSB
+        return volts, amps, temp
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+
+
+def percent(cell_volts):
+    if cell_volts <= CURVE[0][0]:
+        return 0.0
+    for (v0, p0), (v1, p1) in zip(CURVE, CURVE[1:]):
+        if cell_volts <= v1:
+            return p0 + (p1 - p0) * (cell_volts - v0) / (v1 - v0)
+    return 100.0
+
+
+def smoothed(volts, amps):
+    """Average with recent readings so the level does not jump with every load spike."""
+    prev = None
+    try:
+        with open(CACHE) as f:
+            prev = json.load(f)
+    except (OSError, ValueError):
+        pass
+    now = time.time()
+    if prev and now - prev.get("t", 0) < 60:
+        volts = prev["v"] + SMOOTH * (volts - prev["v"])
+        amps = prev["a"] + SMOOTH * (amps - prev["a"])
+    try:
+        with open(CACHE + ".tmp", "w") as f:
+            json.dump({"t": now, "v": volts, "a": amps}, f)
+        os.replace(CACHE + ".tmp", CACHE)
+    except OSError:
+        pass
+    return volts, amps
+
+
+def status():
+    c = config()
+    s = sample(c)
+    if s is None:
+        return None
+    raw_v, raw_a, temp = s
+    volts, amps = (raw_v, raw_a) if os.environ.get("DECK_BATTERY_FAKE") else smoothed(raw_v, raw_a)
+    # Under load the voltage sags; add back the drop across the pack to estimate resting voltage.
+    rest = volts + amps * c["internal_ohms"]
+    pct = round(percent(rest / c["cells"]))
+    state = "idle" if abs(amps) < IDLE_AMPS else ("discharging" if amps > 0 else "charging")
+    hours = None
+    if state == "discharging":
+        hours = c["capacity_mah"] / 1000 * pct / 100 / amps
+    elif state == "charging":
+        hours = c["capacity_mah"] / 1000 * (100 - pct) / 100 / -amps
+    return {"percent": pct, "state": state, "volts": round(volts, 3), "amps": round(amps, 3),
+            "watts": round(volts * amps, 2), "hours": round(hours, 2) if hours is not None else None,
+            "die_temp": round(temp, 1) if temp is not None else None, "cells": c["cells"]}
+
+
+def hm(hours):
+    if hours is None:
+        return "-"
+    m = int(hours * 60)
+    return f"{m // 60}h{m % 60:02d}m" if m >= 60 else f"{m}m"
+
+
+def main():
+    st = status()
+    arg = sys.argv[1] if len(sys.argv) > 1 else ""
+    if arg == "--short":
+        if st:
+            print(st["percent"], st["state"], hm(st["hours"]))
+    elif arg == "--json":
+        print(json.dumps(st))
+    elif st is None:
+        print("No INA228 found (check wiring and the address in ~/.config/deck/battery.json).")
+        sys.exit(1)
+    else:
+        left = {"discharging": " left", "charging": " to full"}.get(st["state"], "")
+        print(f"Battery   {st['percent']}%  {st['state']}")
+        print(f"Voltage   {st['volts']:.3f} V  ({st['volts'] / st['cells']:.3f} V per cell)")
+        print(f"Current   {st['amps']:+.3f} A  ({st['watts']:+.2f} W)")
+        if st["hours"] is not None:
+            print(f"Time      {hm(st['hours'])}{left}")
+        if st["die_temp"] is not None:
+            print(f"Sensor    {st['die_temp']} C")
+
+
+if __name__ == "__main__":
+    main()

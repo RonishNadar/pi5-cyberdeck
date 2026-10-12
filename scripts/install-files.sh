@@ -55,7 +55,7 @@ fi
 grep -q 'bashrc' ~/.bash_profile 2>/dev/null || sed -i '1i [ -f ~/.bashrc ] && . ~/.bashrc' ~/.bash_profile
 
 say "Groups, services and timers"
-sudo usermod -aG video,render,input,bluetooth,wireshark "$(id -un)"
+sudo usermod -aG video,render,input,bluetooth,wireshark,dialout "$(id -un)"
 sudo loginctl enable-linger "$(id -un)"
 sudo systemctl daemon-reload
 sudo systemctl enable --now touch-mouse.service bt-set-addr.service 2>/dev/null
