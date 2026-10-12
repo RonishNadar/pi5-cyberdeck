@@ -34,6 +34,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - [Spotify](#spotify)
 - [YouTube](#youtube)
 - [Podcasts](#podcasts)
+- [Radio](#radio)
 - [Books](#books)
 - [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -122,6 +123,7 @@ pi5-cyberdeck/
 │       ├── reader.py                Books e-reader
 │       ├── tube.py                  YouTube
 │       ├── pods.py                  Podcasts
+│       ├── radio.py                 internet radio
 │       ├── deck_mpv.py              shared background player (mpv) for YouTube, Podcasts, Radio
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
@@ -348,7 +350,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -453,6 +455,28 @@ Four views, switched with `1` to `4` or `Tab`: **Latest** (newest episodes from 
 | `1` to `4`, `Tab` | switch views |
 | `/` `I` `r` | find, import OPML, refresh |
 | `Delete` | unsubscribe (Shows) or clear progress (In progress) |
+| `Left` `Esc` | back |
+
+## Radio
+
+`radio.py` (the **Radio** entry in Apps) plays internet radio from radio-browser.info, a free, community-run directory of about 50,000 stations (no account).
+
+Five views, switched with `1` to `5` or `Tab`: **Favorites**, **Top** (most played worldwide), **Search** (by name), **Genres** (pick one to list its stations) and **Heard** (a log of songs the stations announced, so you can look up "what was that song" later).
+
+- When you play a station, the list it came from becomes the player's playlist: `n` / `p`, and the F6 / F8 media keys, switch to the next or previous station.
+- The bar at the bottom shows the station, the current song when the station sends it, and whether it is live, paused or buffering.
+- Starting a station pauses YouTube, Podcasts and Spotify.
+- Favorites: `~/.config/deck/radio.json`. Songs heard (last 300): `~/.local/share/deck/radio-heard.json`.
+
+| Key | Action |
+|---|---|
+| `Enter` `Right` | play (on a genre: open it) |
+| `f` | add to or remove from favorites |
+| `n` / `p` | next / previous station |
+| `Space` / `-` `+` / `x` | pause / volume / stop |
+| `1` to `5`, `Tab` | switch views |
+| `/` `r` | search, refresh |
+| `Delete` | remove a favorite or a heard song |
 | `Left` `Esc` | back |
 
 ## Books

@@ -32,6 +32,7 @@ APPS = [
     ("spotify", "\uf1bc", "Spotify",   "spot, keyboard player", "spotify", f"{HOME}/bin/spot.py", "spot.py", GREEN),
     ("youtube", "\uf16a", "YouTube",  "search and watch",     "youtube",  f"{HOME}/bin/tube.py",                   "tube.py",    "#ff5555"),
     ("pods", "\uf2ce", "Podcasts",   "shows and episodes",   "podcasts", f"{HOME}/bin/pods.py",                   "pods.py",    PURPLE),
+    ("radio", "\uf519", "Radio",      "internet radio",       "radio",    f"{HOME}/bin/radio.py",                  "radio.py",   ORANGE),
     ("books", "\uf02d", "Books",     "e-reader",             "books",    f"{HOME}/bin/reader.py",                 "reader.py",  CYAN),
     ("music", "\uf001", "Music",     "cmus player",          "music",    "cmus",                                  "cmus",       YELLOW),
     ("mail",  "\uf0e0", "Mail",      "aerc email",           "mail",     "aerc",                                  "aerc",       PURPLE),
