@@ -3,7 +3,7 @@
 
 Library: Up/Down pick, Right/Enter open, g get books (Project Gutenberg), d delete, r rescan.
 Reading: Right/Space next page, Left previous, Up/Down scroll a line, t contents, b bookmark, m bookmarks,
-/ search, n next match, [ ] chapter, +/- width, a theme, j justify, ? help, Esc back.
+/ search, n next match, [ ] chapter, v view, f focus, +/- width, a theme, j justify, ? help, Esc back.
 Tap the right two thirds of the page for next, the left third for previous.
 """
 import html
@@ -55,6 +55,8 @@ THEMES = {
     "Paper":   ("#f4ecd8", "#3b3228", "#9a8c74", "#7a4e2d", "#5b3a8c"),
 }
 WIDTHS = [50, 60, 66, 72, 80, 90, 100]
+VIEWS = ["Single", "Fit", "Split"]   # one column at the set width, full width, two pages side by side
+GUTTER = 7                           # space between the two pages in Split, with a spine in the middle
 WPM = 250
 
 
@@ -79,7 +81,8 @@ class State:
     def __init__(self):
         d = load_json(STATE, {})
         self.books = d.get("books", {})
-        self.prefs = {"theme": "Dracula", "width": 72, "justify": True, "spacing": True}
+        self.prefs = {"theme": "Dracula", "width": 72, "justify": True, "spacing": True,
+                      "view": "Single", "focus": False}
         self.prefs.update(d.get("prefs", {}))
 
     def book(self, path):
@@ -666,6 +669,8 @@ class ReaderScreen(Screen):
         Binding("a", "theme", show=False),
         Binding("J", "justify", show=False),
         Binding("s", "spacing", show=False),
+        Binding("v", "view", show=False),
+        Binding("f", "focus_mode", show=False),
         Binding("g", "goto", show=False),
         Binding("question_mark", "help", show=False),
         Binding("escape,q,backspace", "close", show=False),
@@ -677,7 +682,7 @@ class ReaderScreen(Screen):
         self.rec = state.book(book.path)
         self.ch = self.rec.get("ch", 0) if self.rec.get("ch", 0) < len(book) else 0
         self.anchor = (self.rec.get("block", 0), self.rec.get("off", 0))
-        self.lines, self.page_start, self.width = [], 0, 72
+        self.lines, self.page_start, self.width, self.cols = [], 0, 72, 1
         self.match = None          # (query, chapter, block, start, end)
         self.search_q = ""
 
@@ -707,13 +712,28 @@ class ReaderScreen(Screen):
         for w in [*self.query(Static), self.query_one("#pagewrap")]:
             w.styles.background = bg
 
-    def page_height(self):
+    def col_height(self):
         return max(3, self.query_one("#page").size.height)
+
+    def page_height(self):
+        """Lines shown on one screen: both columns in Split view."""
+        return self.col_height() * self.cols
 
     def relayout(self):
         avail = max(20, self.size.width - 4)
-        self.width = min(self.state.prefs["width"], avail)
-        self.query_one("#page").styles.width = self.width
+        view = self.state.prefs.get("view", "Single")
+        if view == "Split" and (avail - GUTTER) // 2 >= 30:
+            self.cols, self.width = 2, (avail - GUTTER) // 2
+            total = self.width * 2 + GUTTER
+        else:
+            self.cols = 1
+            self.width = avail if view in ("Fit", "Split") else min(self.state.prefs["width"], avail)
+            total = self.width
+        self.query_one("#page").styles.width = total
+        focus = self.state.prefs.get("focus", False)
+        self.query_one("#head").display = not focus
+        self.query_one("#foot").display = not focus
+        self.query_one("#pagewrap").styles.padding = (1, 0) if focus else (0, 0)
         self.lines = layout(self.book.chapter(self.ch), self.width, self.state.prefs, self.theme)
         self.seek(*self.anchor)
 
@@ -745,18 +765,32 @@ class ReaderScreen(Screen):
     # --- drawing ---
     def render_page(self):
         bg, fg, dim, head, emph = self.theme
-        h = self.page_height()
-        page = Text(style=fg, no_wrap=True, overflow="crop")
-        for k, ln in enumerate(self.lines[self.page_start:self.page_start + h]):
+        ch_h = self.col_height()
+        h = ch_h * self.cols
+
+        def cell(i):
+            if i >= len(self.lines):
+                return Text("")
+            ln = self.lines[i]
             t = ln.text.copy()
-            if self.match and self.match[1] == self.ch:
-                _, _, mb, ms, me = self.match
-                if ln.block == mb:
-                    self._highlight(t, ln, ms, me)
+            if self.match and self.match[1] == self.ch and ln.block == self.match[2]:
+                self._highlight(t, ln, self.match[3], self.match[4])
+            return t
+
+        page = Text(style=fg, no_wrap=True, overflow="crop")
+        for k in range(min(ch_h, max(0, len(self.lines) - self.page_start))):
             if k:
                 page.append("\n")
+            t = cell(self.page_start + k)
+            if self.cols == 2:
+                t.truncate(self.width, pad=True)
+                spine = " " * (GUTTER // 2) + "\u2502" + " " * (GUTTER - GUTTER // 2 - 1)
+                t.append(spine, dim)
+                t.append_text(cell(self.page_start + ch_h + k))
             page.append_text(t)
         self.query_one("#page").update(page)
+        if self.state.prefs.get("focus"):
+            return
 
         title = self.book.title
         chap = self.book.chapter_title(self.ch)
@@ -767,15 +801,17 @@ class ReaderScreen(Screen):
         right.truncate(max(0, w - len(left.plain) - 4), overflow="ellipsis")
         self.query_one("#head").update(Text.assemble(left, " " * max(2, w - len(left.plain) - len(right.plain)), right))
 
-        pages = max(1, -(-len(self.lines) // h))
-        cur = min(pages, -(-self.page_start // h) + 1)
+        pages = max(1, -(-len(self.lines) // ch_h))
+        cur = min(pages, -(-self.page_start // ch_h) + 1)
+        last = min(pages, cur + self.cols - 1)
+        page_txt = f"page {cur} of {pages}" if last == cur else f"pages {cur}-{last} of {pages}"
         at_end = self.page_start + h >= len(self.lines)
         pct = self.progress()
         words_left = self.book.chapter(self.ch).words * (1 - min(1, (self.page_start + h) / len(self.lines)))
         mins = round(words_left / WPM)
         left_txt = "end of chapter" if at_end else (f"{mins} min left in chapter" if mins else "under a minute left")
         info = Text.assemble((f"{pct * 100:.0f}%", f"bold {head}"), ("   ", ""),
-                             (f"page {cur} of {pages}", dim), ("   ", ""), (left_txt, dim))
+                             (page_txt, dim), ("   ", ""), (left_txt, dim))
         if any(b["ch"] == self.ch and self.page_start <= self._line_of(b) < self.page_start + h
                for b in self.rec.get("marks", [])):
             info.append("   ", PINK)
@@ -881,10 +917,14 @@ class ReaderScreen(Screen):
         cur = self.state.prefs["width"]
         opts = WIDTHS if d > 0 else WIDTHS[::-1]
         nxt = next((w for w in opts if (w > cur if d > 0 else w < cur)), cur)
+        was = self.state.prefs.get("view", "Single")
+        if was != "Single":      # width only applies to the single column
+            nxt = cur
+            self.state.prefs["view"] = "Single"
         self.state.prefs["width"] = nxt
         self.state.save()
         self.remember_and_relayout()
-        self.notify(f"Line width {min(nxt, self.width)}", timeout=1)
+        self.notify(("Single page, " if was != "Single" else "") + f"line width {self.width}", timeout=1)
 
     def remember_and_relayout(self):
         ln = self.lines[min(self.page_start, len(self.lines) - 1)]
@@ -905,6 +945,25 @@ class ReaderScreen(Screen):
         self.state.save()
         self.remember_and_relayout()
         self.notify("Justified" if self.state.prefs["justify"] else "Ragged right", timeout=1)
+
+    def action_view(self):
+        cur = self.state.prefs.get("view", "Single")
+        self.state.prefs["view"] = VIEWS[(VIEWS.index(cur) + 1) % len(VIEWS)] if cur in VIEWS else VIEWS[0]
+        self.state.save()
+        self.remember_and_relayout()
+        msg = {"Single": "Single page", "Fit": "Fit to screen", "Split": "Two pages"}[self.state.prefs["view"]]
+        if self.state.prefs["view"] == "Split" and self.cols == 1:
+            msg = "Screen too narrow for two pages, using full width"
+        self.notify(msg, timeout=1.5)
+
+    def action_focus_mode(self):
+        self.state.prefs["focus"] = not self.state.prefs.get("focus", False)
+        self.state.save()
+        # the page area changes height once the header and footer are hidden or shown
+        ln = self.lines[min(self.page_start, len(self.lines) - 1)]
+        self.anchor = (ln.block, ln.offset)
+        self.relayout()
+        self.call_after_refresh(self.relayout)
 
     def action_spacing(self):
         self.state.prefs["spacing"] = not self.state.prefs["spacing"]
@@ -1112,7 +1171,9 @@ HELP = [
     ("All bookmarks", "m"),
     ("Search, next match", "/  n"),
     ("Go to percent", "g"),
-    ("Line width", "+  -"),
+    ("View: single, fit, two pages", "v"),
+    ("Focus (hide header and footer)", "f"),
+    ("Line width (single view)", "+  -"),
     ("Theme (Dracula, Night, Paper)", "a"),
     ("Justify on or off", "J"),
     ("Spaced or indented paragraphs", "s"),
