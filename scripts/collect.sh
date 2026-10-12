@@ -96,6 +96,7 @@ scopy /etc/systemd/system/bt-set-addr.service                system/etc/systemd/
 scopy /etc/systemd/system/getty@tty1.service.d/autologin.conf system/etc/systemd/system/getty@tty1.service.d/autologin.conf
 scopy /etc/polkit-1/rules.d/50-deck-power.rules              system/etc/polkit-1/rules.d/50-deck-power.rules
 scopy /etc/polkit-1/rules.d/51-deck-time.rules               system/etc/polkit-1/rules.d/51-deck-time.rules
+scopy /etc/polkit-1/rules.d/52-deck-network.rules             system/etc/polkit-1/rules.d/52-deck-network.rules
 scopy /etc/dracut.conf.d/edid.conf                           system/etc/dracut.conf.d/edid.conf
 scopy /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg   system/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 scopy /usr/share/plymouth/themes/deck                        system/usr/share/plymouth/themes/deck

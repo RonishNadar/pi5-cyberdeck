@@ -1,0 +1,8 @@
+// Let the deck user turn Wi-Fi on/off and manage connections from any session
+// (the settings app runs inside tmux, which may have been started over SSH).
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 &&
+        subject.user == "admin") {
+        return polkit.Result.YES;
+    }
+});

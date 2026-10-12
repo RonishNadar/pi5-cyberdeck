@@ -157,7 +157,9 @@ class NetMixin:
 
     def wifi_pick(self, menu, oid):
         if oid == "toggle":
-            run(["nmcli", "radio", "wifi", "off" if wifi_on() else "on"])
+            ok, msg = run(["nmcli", "radio", "wifi", "off" if wifi_on() else "on"])
+            if not ok:
+                self.notify(f"Wi-Fi: {msg[:80]}", severity="error")
         elif oid == "scan":
             run(["nmcli", "dev", "wifi", "rescan"])
             self.notify("Scanning for networks...")

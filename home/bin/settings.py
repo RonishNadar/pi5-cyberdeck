@@ -12,6 +12,9 @@ from textual.containers import Vertical
 from textual.screen import ModalScreen, Screen
 from textual.widgets import OptionList, Static
 from textual.widgets.option_list import Option
+
+import deck_ui
+deck_ui.install()
 from deck_net import NetMixin
 from deck_prefs import PrefsMixin, current_accent
 

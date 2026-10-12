@@ -29,4 +29,4 @@ bt() {
   fi
 }
 
-printf '%s  %s\n' "$(wifi)" "$(bt)"
+printf '%s   %s \n' "$(wifi)" "$(bt)"

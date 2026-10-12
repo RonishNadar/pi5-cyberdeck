@@ -10,6 +10,9 @@ from textual.app import App, ComposeResult
 from textual.widgets import OptionList, Static
 from textual.widgets.option_list import Option
 
+import deck_ui
+deck_ui.install()
+
 HOME = os.path.expanduser("~")
 os.environ["PATH"] = f"{HOME}/bin:{HOME}/.local/bin:/usr/local/bin:" + os.environ.get("PATH", "")
 
