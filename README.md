@@ -37,6 +37,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - [Radio](#radio)
 - [Notes](#notes)
 - [Weather](#weather)
+- [Offline Wikipedia](#offline-wikipedia)
 - [Books](#books)
 - [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -128,6 +129,7 @@ pi5-cyberdeck/
 │       ├── radio.py                 internet radio
 │       ├── notes.py, note           Notes app, quick capture
 │       ├── weather.py               weather forecast
+│       ├── wiki.py                  offline Wikipedia (Kiwix ZIM files)
 │       ├── deck_mpv.py              shared background player (mpv) for YouTube, Podcasts, Radio
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
@@ -354,7 +356,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Notes, Weather, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Notes, Weather, Wikipedia, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -515,6 +517,26 @@ Five views, switched with `1` to `5` or `Tab`: **Favorites**, **Top** (most play
 - **Places:** the first one is guessed from your internet address. `a` searches for and adds a place, `Left`/`Right` (or `Tab`) switch between places, `d` removes one.
 - **Units:** US units (°F, mph, inches) in the US, metric elsewhere. `u` switches.
 - Data refreshes every 15 minutes, and the last forecast stays visible when offline. Places and units are in `~/.config/deck/weather.json`.
+
+## Offline Wikipedia
+
+`wiki.py` (the **Wikipedia** entry in Apps) reads Kiwix ZIM files from `~/Wiki` with no network at all. Articles use the same page layout as Books: a centered column, headings, italics, links in cyan. Infoboxes, navigation boxes and reference lists are left out; tables show as rows with column separators.
+
+- **Search:** type a title; results update as you type. `Enter` opens the first match, `Down` moves into the list. When few titles match, it also searches article text.
+- **Reading:** `Up`/`Down` scroll, `Space` pages, `t` jumps to a section, `l` lists the article's links (type to filter, `Enter` follows), `Left` goes back, `/` or `Esc` returns to search.
+- **More than one library** (Wikipedia, Wiktionary, Wikivoyage, Project Gutenberg...): `Tab` switches between them.
+- **Getting libraries:** `Ctrl+G` lists the Kiwix catalog with sizes and your free space. `Enter` downloads; the download keeps going if you close the app, resumes if it is interrupted, and the file only appears in `~/Wiki` once it is complete.
+
+Which English Wikipedia to get (October 2026 sizes):
+
+| Version | Size | What you get |
+|---|---|---|
+| Best of Wikipedia, text only | 2.8 GB | about 50,000 most-read articles, complete |
+| All articles, intros only | 14 GB | every article, first section only |
+| Top 1 million, text only | 17 GB | the million most-read articles, complete |
+| All articles, text only | 53 GB | everything (does not fit on a 64 GB card with this setup) |
+
+Pictures cannot be shown in the terminal, so the "with pictures" versions only cost space here.
 
 ## Books
 
