@@ -34,6 +34,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Input, OptionList, Static
 from textual.widgets.option_list import Option
 
+import deck_mpv
 import deck_ui
 deck_ui.install()
 
@@ -858,6 +859,7 @@ class Tube(App):
             ipc("loadfile", url_of(v), mode, -1, f"force-media-title={mpv_quote(v['title'])}")
         save_json(QUEUE_META, self.queue_meta)
         if replace:
+            deck_mpv.pause_others(SOCK)
             ipc("set_property", "pause", False)
         self.call_from_thread(self.tick)
 
@@ -909,6 +911,7 @@ class Tube(App):
         if "_pl" in cur:
             return self.open_playlist(cur["_pl"])
         if kind == "queue":
+            deck_mpv.pause_others(SOCK)
             ipc("playlist-play-index", self.index_of_current())
             ipc("set_property", "pause", False)
             return self.show_queue()
@@ -918,7 +921,7 @@ class Tube(App):
         if self.video_proc and self.video_proc.poll() is None:
             self.notify("A video is already playing", timeout=2)
             return
-        ipc("set_property", "pause", True)
+        deck_mpv.pause_others()          # every background player, this one included, and Spotify
         self.remember(cur)
         self.status(f"Opening {cur['title']}...")
         proc = self.video_proc = subprocess.Popen(video_cmd(cur, self.cfg["quality"]), env=player_env(),
@@ -937,6 +940,8 @@ class Tube(App):
     def action_toggle(self):
         if ipc("cycle", "pause") is None:
             self.notify("Nothing is playing in the background", timeout=1.5)
+        elif ipc("get_property", "pause") is False:
+            deck_mpv.pause_others(SOCK)
         self.tick()
 
     def action_seek(self, secs):

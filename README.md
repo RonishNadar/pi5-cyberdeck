@@ -33,6 +33,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - [Using the deck](#using-the-deck)
 - [Spotify](#spotify)
 - [YouTube](#youtube)
+- [Podcasts](#podcasts)
 - [Books](#books)
 - [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -120,6 +121,8 @@ pi5-cyberdeck/
 │       ├── lanscan.py               LAN scanner
 │       ├── reader.py                Books e-reader
 │       ├── tube.py                  YouTube
+│       ├── pods.py                  Podcasts
+│       ├── deck_mpv.py              shared background player (mpv) for YouTube, Podcasts, Radio
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
 │   ├── usr/local/bin/touch-mouse.py, bt-set-addr.sh
@@ -345,7 +348,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -425,6 +428,32 @@ There are five views: **Subscriptions**, **Search**, **History**, **Playlists** 
 | `?` | all keys |
 
 In the mpv player: `Space` pause, `Left`/`Right` seek 5 seconds, `Up`/`Down` seek 1 minute, `9`/`0` volume, `f` full screen, `q` back to the list.
+
+## Podcasts
+
+`pods.py` (the **Podcasts** entry in Apps) finds shows in Apple's free podcast directory (no account), follows them by RSS, and plays episodes in the background with mpv. It remembers where you stopped in every episode.
+
+Four views, switched with `1` to `4` or `Tab`: **Latest** (newest episodes from your shows), **Shows**, **Find** (top charts, or search by name or topic) and **In progress**.
+
+- Starting an episode pauses YouTube, Radio and Spotify, so only one thing plays.
+- Playback speed (`[` `]`, 0.5x to 3x) is kept between episodes. mpv keeps voices at normal pitch.
+- `d` downloads an episode to `~/Podcasts/<show>/`; downloaded episodes play from the file, so they work offline.
+- Coming from another app? Export your subscriptions as OPML, put the file in `~/Downloads`, and press `I`.
+- Subscriptions and speed: `~/.config/deck/podcasts.json`. Positions: `~/.local/share/deck/podcasts-progress.json`. Feeds are cached in `~/.cache/deck/podcasts` and refreshed every 30 minutes (or `r`).
+
+| Key | Action |
+|---|---|
+| `Enter` `Right` | play from where you stopped (on a show: open it) |
+| `s` | subscribe or unsubscribe |
+| `d` / `m` / `i` | download / mark played or unplayed / show notes |
+| `Space` | pause or play |
+| `,` / `.` | back 15 seconds / forward 30 seconds |
+| `[` `]` / `-` `+` | speed / volume |
+| `x` | stop |
+| `1` to `4`, `Tab` | switch views |
+| `/` `I` `r` | find, import OPML, refresh |
+| `Delete` | unsubscribe (Shows) or clear progress (In progress) |
+| `Left` `Esc` | back |
 
 ## Books
 

@@ -84,6 +84,12 @@ are editing the live system.
   feeds (no Google login). Background audio is a detached mpv with IPC socket
   `/run/user/1000/deck-tube.sock`. State: `~/.config/deck/youtube.json`,
   `~/.local/share/deck/youtube-history.json`. `deck-media.sh` sends media keys to the playing player.
+- `pods.py`: podcasts. Apple search/lookup + top-charts JSON (no key), RSS feeds cached in
+  `~/.cache/deck/podcasts`, positions in `~/.local/share/deck/podcasts-progress.json`.
+- `deck_mpv.py`: shared background mpv helpers (sockets `/run/user/1000/deck-{tube,pods,radio}.sock`,
+  `pause_others()` also pauses spotifyd). Unix socket paths max 108 bytes, so tests must use a short
+  path like `/run/user/1000/deck-X-test.sock`, never the scratchpad.
+- Textual key names: `[` is `left_square_bracket`, `]` `right_square_bracket`, `.` `full_stop`.
 - `deck-battery` (INA228 over raw `/dev/i2c-1`, stdlib only; prints nothing without the sensor),
   `lanscan.py` (nmap TUI), `notify` (tmux banners + sounds, honors `~/.config/deck/flags/*`),
   `deck-watch.sh` (user timer: temp, disk, undervoltage), `deck-footer.sh`, `deck-status.sh`,
