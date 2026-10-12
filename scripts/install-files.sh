@@ -63,6 +63,7 @@ sudo systemctl enable --now bluetooth NetworkManager avahi-daemon 2>/dev/null
 sudo systemctl restart polkit
 systemctl --user daemon-reload
 systemctl --user enable --now pipewire pipewire-pulse wireplumber deck-watch.timer 2>/dev/null
+command -v spotifyd >/dev/null && systemctl --user enable --now spotifyd 2>/dev/null
 mkdir -p ~/.config/deck/flags ~/projects ~/Downloads ~/Music ~/Pictures
 
 say "Boot splash theme"

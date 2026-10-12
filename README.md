@@ -31,6 +31,8 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
   - [10. Accounts and extras](#10-accounts-and-extras)
   - [11. Camera](#11-camera)
 - [Using the deck](#using-the-deck)
+- [Spotify](#spotify)
+- [Keyboard shortcuts](#keyboard-shortcuts)
 - [How it fits together](#how-it-fits-together)
 - [Troubleshooting](#troubleshooting)
 - [Keeping this repo up to date](#keeping-this-repo-up-to-date)
@@ -351,6 +353,52 @@ rpicam-hello --list-cameras
 | `notifs` | Recent notifications |
 | `lan-scan`, `lan-ports IP`, `sniff`, `bw` | Network tools |
 | `space`, `md file.md`, `today`, `todo` | Disk usage, Markdown, calendar |
+
+## Spotify
+
+`spot` (`~/bin/spot.py`, the **Spotify** entry in Apps) is a keyboard-first Spotify client in the same style as the other deck apps. Audio is played by **spotifyd**, which turns the Pi into a Spotify Connect speaker called `cyberdeck`. spot browses your library through the Spotify Web API and tells spotifyd what to play. A Spotify Premium account is required.
+
+Setup:
+
+1. **Spotify developer app.** At developer.spotify.com/dashboard, create an app, add the redirect URI `http://127.0.0.1:8888/callback`, tick **Web API**, save, and copy the **Client ID**.
+2. **spotifyd.** `install-packages.sh` builds it from source (the release binary needs OpenSSL 1.1, which Ubuntu 26.04 does not ship). Log it in with `spotifyd authenticate`: open the printed link on a phone or laptop, then copy the `127.0.0.1:...` address the browser ends on and replay it on the Pi with `curl "ADDRESS"` from a second SSH window. Then `systemctl --user enable --now spotifyd`.
+3. **spot.** Run `~/bin/spot.py --login` once, paste the Client ID, and do the same copy-the-address step.
+
+| Key | Action |
+|---|---|
+| `space` | play / pause |
+| `n` `p` | next / previous |
+| `,` `.` | seek 10 s |
+| `-` `+` | Spotify volume |
+| `s` `r` | shuffle / repeat |
+| `1`-`5` | Home, Search, Liked, Albums, Queue |
+| `/` | search |
+| `Enter` / `Left` | open or play / back |
+| `a` `f` | add to queue / like |
+| `o` `i` | open album / artist of a song |
+| `d` | choose speaker |
+| `?` | all keys |
+
+Notes:
+
+- Spotify's 2026 developer rules apply: songs are only listed for playlists you own or collaborate on (others show a single "Play this playlist" row), and search returns at most 10 results per type per request.
+- `use_mpris = true` in `spotifyd.conf` plus `playerctl` lets play/pause, skip, seek and volume go straight to spotifyd over D-Bus, which is instant.
+- The audio cache is turned off (`no_audio_cache = true`). A corrupted cached file made spotifyd skip through songs silently.
+- Spotify logins are never collected into this repo (`~/.config/deck/spotify*.json`, `~/.cache/spotifyd/oauth`).
+
+## Keyboard shortcuts
+
+These work everywhere on the deck. Sway handles F2 to F8 (see the `deck media keys` block in `home/.config/sway/config` and `home/bin/deck-media.sh`), and F1 is set in `.tmux.conf`.
+
+| Key | Action |
+|---|---|
+| F1 | tmux prefix (same as Ctrl+B) |
+| F2 | bring the terminal forward and go to the `main` tab |
+| F3 | mute |
+| F4 / F5 | system volume down / up |
+| F6 / F7 / F8 | previous / play-pause / next (spotifyd or any MPRIS player) |
+
+Both the plain F keys and the media key codes (`XF86AudioPlay` and so on) are bound, so the keys work with Fn lock on or off.
 
 ## How it fits together
 

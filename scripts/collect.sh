@@ -5,7 +5,8 @@
 #   ./scripts/collect.sh && git add -A && git commit -m "Update configs"
 #
 # Secrets are never collected: aerc account files, Wi-Fi passwords (netplan,
-# NetworkManager) and SSH keys are skipped on purpose.
+# NetworkManager), SSH keys and Spotify logins (~/.config/deck/spotify*.json,
+# ~/.cache/spotifyd/oauth) are skipped on purpose.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -65,6 +66,8 @@ copy "$H/.w3m/config"                               home/.w3m/config
 copy "$H/.w3m/keymap"                               home/.w3m/keymap
 copy "$H/.config/systemd/user/deck-watch.service"   home/.config/systemd/user/deck-watch.service
 copy "$H/.config/systemd/user/deck-watch.timer"     home/.config/systemd/user/deck-watch.timer
+copy "$H/.config/spotifyd/spotifyd.conf"            home/.config/spotifyd/spotifyd.conf
+copy "$H/.config/systemd/user/spotifyd.service"     home/.config/systemd/user/spotifyd.service
 copy "$H/.icons/DeckCircle"                         home/.icons/DeckCircle
 copy "$H/.bash_profile"                             home/.bash_profile
 [ -f "$H/.config/containers/systemd/filebrowser.container" ] && \

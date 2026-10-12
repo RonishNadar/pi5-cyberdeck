@@ -7,3 +7,7 @@
 __pycache__/
 *.pyc
 *.swp
+# Spotify logins
+**/spotify-token.json
+**/spotify.json
+**/oauth/credentials.json

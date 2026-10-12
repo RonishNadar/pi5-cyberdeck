@@ -46,7 +46,8 @@ sudo DEBIAN_FRONTEND=noninteractive apt install -y \
   btop neovim ripgrep fd-find fzf zoxide jq file ffmpegthumbnailer poppler-utils p7zip-full \
   ncdu calcurse newsboat w3m cmus aerc \
   nmap tcpdump tshark termshark \
-  plymouth plymouth-themes edid-decode
+  plymouth plymouth-themes edid-decode \
+  playerctl pkg-config libasound2-dev libssl-dev libpulse-dev libdbus-1-dev
 
 say "Packages that may or may not exist in your Ubuntu release"
 for p in glow lazygit fonts-league-gothic; do
@@ -79,7 +80,17 @@ command -v starship >/dev/null || curl -sS https://starship.rs/install.sh | sh -
 
 say "Python environment for the deck apps (Textual)"
 [ -x ~/.venvs/deck/bin/python ] || python3 -m venv ~/.venvs/deck
-~/.venvs/deck/bin/pip install --quiet --upgrade pip textual
+~/.venvs/deck/bin/pip install --quiet --upgrade pip textual requests
+
+say "spotifyd (Spotify Connect speaker; built from source, the release binary needs OpenSSL 1.1)"
+if ! command -v spotifyd >/dev/null; then
+  command -v cargo >/dev/null || curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+  . "$HOME/.cargo/env"
+  rm -rf ~/src/spotifyd && git clone -q --depth 1 --branch v0.4.2 https://github.com/Spotifyd/spotifyd ~/src/spotifyd
+  (cd ~/src/spotifyd && cargo build --release --locked -j 2 --features pulseaudio_backend) \
+    && sudo install -m 755 ~/src/spotifyd/target/release/spotifyd /usr/local/bin/spotifyd
+  rm -rf ~/src/spotifyd/target
+fi
 
 say "Plugin manager for tmux"
 [ -d ~/.tmux/plugins/tpm ] || git clone -q https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm

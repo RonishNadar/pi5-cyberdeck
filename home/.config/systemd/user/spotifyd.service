@@ -1,0 +1,12 @@
+[Unit]
+Description=Spotify Connect speaker (spotifyd)
+After=network-online.target pipewire-pulse.service
+Wants=pipewire-pulse.service
+
+[Service]
+ExecStart=/usr/local/bin/spotifyd --no-daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
