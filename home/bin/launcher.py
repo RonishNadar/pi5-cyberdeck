@@ -34,6 +34,7 @@ APPS = [
     ("pods", "\uf2ce", "Podcasts",   "shows and episodes",   "podcasts", f"{HOME}/bin/pods.py",                   "pods.py",    PURPLE),
     ("radio", "\uf519", "Radio",      "internet radio",       "radio",    f"{HOME}/bin/radio.py",                  "radio.py",   ORANGE),
     ("notes", "\uf15c", "Notes",      "Markdown notes",       "notes",    f"{HOME}/bin/notes.py",                  "notes.py",   YELLOW),
+    ("weather", "\ue302", "Weather",  "forecast and air",     "weather",  f"{HOME}/bin/weather.py",                "weather.py", CYAN),
     ("books", "\uf02d", "Books",     "e-reader",             "books",    f"{HOME}/bin/reader.py",                 "reader.py",  CYAN),
     ("music", "\uf001", "Music",     "cmus player",          "music",    "cmus",                                  "cmus",       YELLOW),
     ("mail",  "\uf0e0", "Mail",      "aerc email",           "mail",     "aerc",                                  "aerc",       PURPLE),

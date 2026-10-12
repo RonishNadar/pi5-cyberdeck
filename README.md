@@ -36,6 +36,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - [Podcasts](#podcasts)
 - [Radio](#radio)
 - [Notes](#notes)
+- [Weather](#weather)
 - [Books](#books)
 - [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -126,6 +127,7 @@ pi5-cyberdeck/
 │       ├── pods.py                  Podcasts
 │       ├── radio.py                 internet radio
 │       ├── notes.py, note           Notes app, quick capture
+│       ├── weather.py               weather forecast
 │       ├── deck_mpv.py              shared background player (mpv) for YouTube, Podcasts, Radio
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
@@ -352,7 +354,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Notes, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Notes, Weather, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -502,6 +504,17 @@ Five views, switched with `1` to `5` or `Tab`: **Favorites**, **Top** (most play
 | | | `Ctrl+T` tick a checkbox, `Ctrl+S` save |
 | `Esc` | clear the search | back to the list |
 | `q` | quit | |
+
+## Weather
+
+`weather.py` (the **Weather** entry in Apps) shows the weather from Open-Meteo, which is free and needs no account or key.
+
+- **Now:** the temperature in large digits, the conditions, feels-like, wind and gusts with direction, humidity, pressure, sunrise and sunset, today's UV index, and air quality (US AQI).
+- **Next 24 hours** in 2-hour steps, with the chance of rain.
+- **7 days:** each day's low and high on a bar scaled to the week, plus the chance and amount of rain.
+- **Places:** the first one is guessed from your internet address. `a` searches for and adds a place, `Left`/`Right` (or `Tab`) switch between places, `d` removes one.
+- **Units:** US units (°F, mph, inches) in the US, metric elsewhere. `u` switches.
+- Data refreshes every 15 minutes, and the last forecast stays visible when offline. Places and units are in `~/.config/deck/weather.json`.
 
 ## Books
 
