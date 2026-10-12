@@ -804,7 +804,10 @@ class ReaderScreen(Screen):
     def goto_chapter(self, ch, block=0, off=0, end=False):
         self.ch = max(0, min(len(self.book) - 1, ch))
         self.lines = layout(self.book.chapter(self.ch), self.width, self.state.prefs, self.theme)
-        if end:
+        if end == "page":      # top of the chapter's last page
+            self.page_start = (len(self.lines) - 1) // self.page_height() * self.page_height()
+            self.render_page()
+        elif end:              # last line at the bottom of the screen
             self.page_start = max(0, len(self.lines) - self.page_height())
             self.render_page()
         else:
@@ -812,10 +815,10 @@ class ReaderScreen(Screen):
         self.remember()
 
     def action_page(self, d):
+        # Pages are fixed blocks of lines from the chapter start. After scrolling by line,
+        # Right/Left go to the top of the next/previous one of those pages.
         h = self.page_height()
-        nxt = self.page_start + d * h
-        if d < 0 and self.page_start > 0:
-            nxt = max(0, nxt)
+        nxt = (self.page_start // h + 1) * h if d > 0 else (self.page_start - 1) // h * h
         if 0 <= nxt < len(self.lines):
             self.page_start = nxt
             self.render_page()
@@ -823,7 +826,7 @@ class ReaderScreen(Screen):
         elif d > 0 and self.ch < len(self.book) - 1:
             self.goto_chapter(self.ch + 1)
         elif d < 0 and self.ch > 0:
-            self.goto_chapter(self.ch - 1, end=True)
+            self.goto_chapter(self.ch - 1, end="page")
         elif d > 0:
             self.notify("The end.", timeout=2)
 

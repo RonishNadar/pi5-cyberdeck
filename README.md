@@ -400,6 +400,8 @@ Notes:
 | `Right` `Space`, tap the right two thirds | next page |
 | `Left`, tap the left third | previous page |
 | `Down` `Up`, mouse wheel | scroll one line (crosses into the next or previous chapter at the edges) |
+
+After scrolling by line, `Right` and `Left` snap back to the top of the next or previous page, so pages always break in the same places.
 | `]` `[` | next / previous chapter |
 | `t` | contents |
 | `b` / `m` | bookmark this page / list bookmarks |
