@@ -95,6 +95,8 @@ are editing the live system.
 - `wiki.py`: offline Wikipedia via `libzim` (pip). Reuses `reader.HtmlToBlocks`/`reader.layout`; skips
   elements by whole class name (substring matching once hid whole pages). ZIMs in `~/Wiki` (data, not
   collected); downloads are detached `curl -C -` jobs tracked in `/run/user/1000/deck-wiki-downloads.json`.
+- `qr.py`: rpicam-vid `--codec yuv420` 640x360@8 to stdout; the Y plane goes to zxingcpp (pip) and a
+  half-block preview. Wi-Fi QR joins via nmcli after a confirm. Tests must stub nmcli/wl-copy/tmux.
 - `deck_mpv.py`: shared background mpv helpers (sockets `/run/user/1000/deck-{tube,pods,radio}.sock`,
   `pause_others()` also pauses spotifyd). Unix socket paths max 108 bytes, so tests must use a short
   path like `/run/user/1000/deck-X-test.sock`, never the scratchpad.

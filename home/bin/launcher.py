@@ -27,6 +27,7 @@ except Exception:
 APPS = [
     ("term",  "\uf120", "Terminal",  "new shell",            None,       "bash",                                  "bash",       PURPLE),
     ("cam",   "\uf030", "Camera",    "photos and video",     "camera",   "~/bin/camera.py",                       "camera.py",  PINK),
+    ("qr",    "\uf029", "QR Scanner", "codes and barcodes",   "qr",       f"{HOME}/bin/qr.py",                     "qr.py",      PINK),
     ("files", "\uf07c", "Files",     "yazi file manager",    "files",    "yazi",                                  "yazi",       CYAN),
     ("mon",   "\uf0e4", "Monitor",   "btop system monitor",  "monitor",  "btop",                                  "btop",       GREEN),
     ("spotify", "\uf1bc", "Spotify",   "spot, keyboard player", "spotify", f"{HOME}/bin/spot.py", "spot.py", GREEN),

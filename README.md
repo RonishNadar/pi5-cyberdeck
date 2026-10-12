@@ -38,6 +38,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - [Notes](#notes)
 - [Weather](#weather)
 - [Offline Wikipedia](#offline-wikipedia)
+- [QR scanner](#qr-scanner)
 - [Books](#books)
 - [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -130,6 +131,7 @@ pi5-cyberdeck/
 │       ├── notes.py, note           Notes app, quick capture
 │       ├── weather.py               weather forecast
 │       ├── wiki.py                  offline Wikipedia (Kiwix ZIM files)
+│       ├── qr.py                    QR and barcode scanner
 │       ├── deck_mpv.py              shared background player (mpv) for YouTube, Podcasts, Radio
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
@@ -356,7 +358,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Notes, Weather, Wikipedia, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, QR Scanner, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Notes, Weather, Wikipedia, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -537,6 +539,24 @@ Which English Wikipedia to get (October 2026 sizes):
 | All articles, text only | 53 GB | everything (does not fit on a 64 GB card with this setup) |
 
 Pictures cannot be shown in the terminal, so the "with pictures" versions only cost space here.
+
+## QR scanner
+
+`qr.py` (the **QR Scanner** entry in Apps) uses the camera on CAM1 to read QR codes and barcodes (QR, Data Matrix, Aztec, EAN/UPC and more, through zxing-cpp). The terminal shows a live grey preview for aiming, and the code turns purple when it is found. It scans by itself; there is nothing to press.
+
+What it does with a code:
+
+| Code | Actions |
+|---|---|
+| Wi-Fi (`WIFI:S:...`) | **Join** the network with NetworkManager (asks first: switching networks drops SSH sessions) |
+| Link | **Open** in w3m in a new tab |
+| Contact card (vCard, MECARD) | shows name, phone, email, company |
+| Product barcode | look it up on Open Food Facts |
+| Anything | **Copy** (Wayland clipboard and the tmux buffer, so `Prefix+]` pastes it in a terminal) |
+
+- Keys: `Enter` does the highlighted action, `c` copies, `Space` pauses the camera, `Delete` forgets a scan, `q` quits.
+- The last 100 scans are kept in `~/.local/share/deck/qr-history.json` and listed under "Earlier scans".
+- The camera can only be used by one app at a time: close the Camera app first. The scanner runs the camera at 640x360 and 8 frames a second, which is light on power.
 
 ## Books
 

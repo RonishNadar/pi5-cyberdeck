@@ -82,7 +82,7 @@ command -v starship >/dev/null || curl -sS https://starship.rs/install.sh | sh -
 
 say "Python environment for the deck apps (Textual)"
 [ -x ~/.venvs/deck/bin/python ] || python3 -m venv ~/.venvs/deck
-~/.venvs/deck/bin/pip install --quiet --upgrade pip "textual[syntax]" requests "yt-dlp[default]" libzim
+~/.venvs/deck/bin/pip install --quiet --upgrade pip "textual[syntax]" requests "yt-dlp[default]" libzim zxing-cpp numpy
 
 say "spotifyd (Spotify Connect speaker; built from source, the release binary needs OpenSSL 1.1)"
 if ! command -v spotifyd >/dev/null; then
