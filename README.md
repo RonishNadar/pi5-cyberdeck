@@ -35,6 +35,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - [YouTube](#youtube)
 - [Podcasts](#podcasts)
 - [Radio](#radio)
+- [Notes](#notes)
 - [Books](#books)
 - [Battery](#battery)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -124,6 +125,7 @@ pi5-cyberdeck/
 │       ├── tube.py                  YouTube
 │       ├── pods.py                  Podcasts
 │       ├── radio.py                 internet radio
+│       ├── notes.py, note           Notes app, quick capture
 │       ├── deck_mpv.py              shared background player (mpv) for YouTube, Podcasts, Radio
 │       └── make-logo.sh             draws the logo
 ├── system/                          copied into / with sudo
@@ -350,7 +352,7 @@ rpicam-hello --list-cameras
 
 **Apps and settings menus:** tap a line, or use `Up`/`Down`, `Right`/`Enter` to open, `Left`/`Esc` to go back.
 
-**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
+**Apps tab:** Terminal, Camera, Files (yazi), Monitor (btop), Spotify, YouTube, Podcasts, Radio, Notes, Books, Music (cmus), Mail (aerc), News (newsboat), Calendar (calcurse), LAN Scan, Git (lazygit), Web (w3m), Claude Code. Edit the `APPS` list in `~/bin/launcher.py` to change it.
 
 **Settings tab:** Wi-Fi (scan, connect, forget), Bluetooth (scan, pair, connect, remove), Sound (volume, output), Display (text size, cursor hide delay), Date & time (time zone, network time, 12/24-hour), Notifications (banners, sounds, long-command alerts, system warnings, history), Footer (blocks on/off), Theme (accent color), About, Software updates, Power (restart display, reboot, shut down).
 
@@ -478,6 +480,28 @@ Five views, switched with `1` to `5` or `Tab`: **Favorites**, **Top** (most play
 | `/` `r` | search, refresh |
 | `Delete` | remove a favorite or a heard song |
 | `Left` `Esc` | back |
+
+## Notes
+
+`notes.py` (the **Notes** entry in Apps) keeps notes as plain Markdown files in `~/Notes`, so they stay readable anywhere and are easy to sync or back up.
+
+- **List and preview:** notes are sorted by last edit, with a live preview on the right and a checklist count ("2/5 done").
+- **Editor:** full screen with Markdown highlighting. It saves by itself a second after you stop typing, and again when you leave. A new note you leave untouched is not kept.
+- **Checklists:** write `- [ ] item`. `Ctrl+T` adds a box to the current line or ticks and unticks it.
+- **Search:** `/` searches the text of every note as you type.
+- **Delete** moves the note to `~/Notes/.trash`, so nothing is lost by accident.
+- **Quick capture from any shell:** `note buy milk` adds a timestamped line to `~/Notes/inbox.md`. `note` on its own opens the app.
+
+| Key | List | Editor |
+|---|---|---|
+| `Enter` `Right` | edit | |
+| `n` | new note (Enter alone uses today's date as the title) | |
+| `v` | read view (rendered Markdown; `e` edits) | `Ctrl+P` read view |
+| `r` / `d` | rename / delete | |
+| `/` | search | |
+| | | `Ctrl+T` tick a checkbox, `Ctrl+S` save |
+| `Esc` | clear the search | back to the list |
+| `q` | quit | |
 
 ## Books
 

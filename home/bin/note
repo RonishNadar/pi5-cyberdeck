@@ -1,0 +1,8 @@
+#!/bin/sh
+# Quick capture: "note buy milk" adds a line to ~/Notes/inbox.md; "note" alone opens the Notes app.
+NOTES="$HOME/Notes"; INBOX="$NOTES/inbox.md"
+[ $# -eq 0 ] && exec "$HOME/bin/notes.py"
+mkdir -p "$NOTES"
+[ -s "$INBOX" ] || printf '# Inbox\n\n' > "$INBOX"
+printf -- '- %s  _(%s)_\n' "$*" "$(date '+%b %-d %H:%M')" >> "$INBOX"
+echo "Added to $INBOX"
