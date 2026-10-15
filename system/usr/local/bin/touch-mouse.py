@@ -43,8 +43,16 @@ def main():
                  e.EV_ABS: [(e.ABS_X, AbsInfo(0, 0, 65535, 0, 0, 0)),
                             (e.ABS_Y, AbsInfo(0, 0, 65535, 0, 0, 0))]},
                 name="deck-touch-mouse")
-    dev.grab()
+    try:
+        dev.grab()
+        run(dev, ui, xi, yi, rot)
+    finally:
+        # Unplugging the panel ends up here; free the virtual mouse so the
+        # next panel does not leave a second one behind.
+        ui.close()
+        dev.close()
 
+def run(dev, ui, xi, yi, rot):
     def norm(x, y):
         u = (x - xi.min) / max(1, xi.max - xi.min)
         v = (y - yi.min) / max(1, yi.max - yi.min)

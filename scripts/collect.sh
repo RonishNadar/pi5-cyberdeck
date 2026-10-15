@@ -70,6 +70,7 @@ copy "$H/.config/spotifyd/spotifyd.conf"            home/.config/spotifyd/spotif
 copy "$H/.config/systemd/user/spotifyd.service"     home/.config/systemd/user/spotifyd.service
 copy "$H/.icons/DeckCircle"                         home/.icons/DeckCircle
 copy "$H/.bash_profile"                             home/.bash_profile
+copy "$H/.hushlogin"                               home/.hushlogin
 [ -f "$H/.config/containers/systemd/filebrowser.container" ] && \
   copy "$H/.config/containers/systemd/filebrowser.container" home/.config/containers/systemd/filebrowser.container
 
@@ -93,7 +94,9 @@ scopy /usr/local/bin/touch-mouse.py                          system/usr/local/bi
 scopy /usr/local/bin/bt-set-addr.sh                          system/usr/local/bin/bt-set-addr.sh
 scopy /etc/systemd/system/touch-mouse.service                system/etc/systemd/system/touch-mouse.service
 scopy /etc/systemd/system/bt-set-addr.service                system/etc/systemd/system/bt-set-addr.service
+scopy /etc/bluetooth/main.conf                             system/etc/bluetooth/main.conf
 scopy /etc/systemd/system/getty@tty1.service.d/autologin.conf system/etc/systemd/system/getty@tty1.service.d/autologin.conf
+scopy /etc/systemd/system/plymouth-quit.service.d/retain-splash.conf system/etc/systemd/system/plymouth-quit.service.d/retain-splash.conf
 scopy /etc/polkit-1/rules.d/50-deck-power.rules              system/etc/polkit-1/rules.d/50-deck-power.rules
 scopy /etc/polkit-1/rules.d/51-deck-time.rules               system/etc/polkit-1/rules.d/51-deck-time.rules
 scopy /etc/polkit-1/rules.d/52-deck-network.rules             system/etc/polkit-1/rules.d/52-deck-network.rules
