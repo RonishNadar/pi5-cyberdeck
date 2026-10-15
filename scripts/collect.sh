@@ -100,6 +100,7 @@ scopy /etc/systemd/system/plymouth-quit.service.d/retain-splash.conf system/etc/
 scopy /etc/polkit-1/rules.d/50-deck-power.rules              system/etc/polkit-1/rules.d/50-deck-power.rules
 scopy /etc/polkit-1/rules.d/51-deck-time.rules               system/etc/polkit-1/rules.d/51-deck-time.rules
 scopy /etc/polkit-1/rules.d/52-deck-network.rules             system/etc/polkit-1/rules.d/52-deck-network.rules
+scopy /etc/udev/rules.d/70-deck-consumer-keys.rules        system/etc/udev/rules.d/70-deck-consumer-keys.rules
 scopy /etc/dracut.conf.d/edid.conf                           system/etc/dracut.conf.d/edid.conf
 scopy /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg   system/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 scopy /usr/share/plymouth/themes/deck                        system/usr/share/plymouth/themes/deck

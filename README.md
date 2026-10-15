@@ -618,9 +618,11 @@ These work everywhere on the deck. Sway handles F2 to F8 and Back (see the `deck
 | F3 | mute |
 | F4 / F5 | system volume down / up |
 | F6 / F7 / F8 | previous / play-pause / next (spotifyd or any MPRIS player) |
-| Back (the keyboard's `XF86Back` key) | close the current app after a confirm (`y`/Enter close, `n`/Esc cancel). `main`, `apps`, `settings` and terminal tabs are never closed. The app gets SIGTERM first (Notes saves the open note, Camera stops recording), and the tab is force-closed after 3 s. See `home/bin/deck-close.sh` |
+| Back (the keyboard's `XF86Back` key) | close the current app after a confirm (`y`/Enter close, `n`/Esc cancel). `main`, `apps`, `settings` and terminal tabs are never closed. The app gets SIGTERM first (Notes saves the open note, Camera stops recording), and the tab is force-closed after 3 s. See `home/bin/deck-close.sh`. It needs the udev rule `70-deck-consumer-keys.rules` (below the table) |
 
 Both the plain F keys and the media key codes (`XF86AudioPlay` and so on) are bound, so the keys work with Fn lock on or off.
+
+The keyboard's media-key interface (USB 1915:1025, "Consumer Control") reports a volume axis, so udev labels it a tablet pad and sway ignores its keys. `system/etc/udev/rules.d/70-deck-consumer-keys.rules` relabels it (and its parent input device, which libinput also reads) as a keyboard. After installing the rule, reconnect the keyboard once.
 
 ## How it fits together
 

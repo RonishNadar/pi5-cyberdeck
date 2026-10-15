@@ -38,7 +38,7 @@ if [ -d "$REPO/system" ]; then
   sudo cp -a "$REPO/system/." /
   sudo chown -R root:root /usr/local/bin/touch-mouse.py /usr/local/bin/bt-set-addr.sh \
     /etc/systemd/system/touch-mouse.service /etc/systemd/system/bt-set-addr.service \
-    /etc/systemd/system/getty@tty1.service.d /etc/polkit-1/rules.d /usr/share/plymouth/themes/deck \
+    /etc/systemd/system/getty@tty1.service.d /etc/polkit-1/rules.d /etc/udev/rules.d/70-deck-consumer-keys.rules /usr/share/plymouth/themes/deck \
     /lib/firmware/edid 2>/dev/null
   sudo chmod +x /usr/local/bin/touch-mouse.py /usr/local/bin/bt-set-addr.sh 2>/dev/null
 fi
@@ -61,6 +61,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now touch-mouse.service bt-set-addr.service 2>/dev/null
 sudo systemctl enable --now bluetooth NetworkManager avahi-daemon 2>/dev/null
 sudo systemctl restart polkit
+sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=input --action=change
 systemctl --user daemon-reload
 systemctl --user enable --now pipewire pipewire-pulse wireplumber deck-watch.timer 2>/dev/null
 command -v spotifyd >/dev/null && systemctl --user enable --now spotifyd 2>/dev/null

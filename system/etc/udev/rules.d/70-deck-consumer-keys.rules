@@ -1,0 +1,4 @@
+# The keyboard's media-key interface (USB 1915:1025 "Consumer Control") reports a volume axis,
+# so udev labels it a tablet pad and sway ignores its keys (Back, media keys). Make it a keyboard.
+# libinput reads the tags of the event node and its parent inputN, so fix both.
+ACTION=="add|change", SUBSYSTEM=="input", KERNEL=="event*|input*", ATTRS{id/vendor}=="1915", ATTRS{id/product}=="1025", ATTRS{name}=="*Consumer Control", ENV{ID_INPUT_TABLET}="", ENV{ID_INPUT_TABLET_PAD}="", ENV{ID_INPUT_KEY}="1", ENV{ID_INPUT_KEYBOARD}="1"
