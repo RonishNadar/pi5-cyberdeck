@@ -5,9 +5,11 @@ List: Up/Down pick, Enter/Right edit, n new note, v read view, r rename, d delet
 / search, q quit. Editor: type away (it saves by itself), Ctrl+T tick a checkbox,
 Ctrl+P read view, Esc back to the list.
 """
+import asyncio
 import os
 import re
 import shutil
+import signal
 import time
 
 from rich.markdown import Markdown
@@ -339,8 +341,14 @@ class Notes(App):
 
     def on_mount(self):
         os.makedirs(NOTES, exist_ok=True)
+        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, self.save_and_exit)   # Back key close
         self.refresh_list()
         self.main.query_one("#list").focus()
+
+    def save_and_exit(self):
+        if isinstance(self.screen, EditScreen):
+            self.screen.action_close()
+        self.exit()
 
     def refresh_list(self, select=None):
         ol = self.main.query_one("#list", OptionList)

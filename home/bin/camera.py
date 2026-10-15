@@ -9,6 +9,7 @@ Videos:  the preview stream is written to .mkv without re-encoding (the Pi 5 has
 """
 import glob
 import os
+import signal
 import subprocess
 import threading
 import time
@@ -40,6 +41,11 @@ window { background: #000000; }
 .status { background: rgba(40, 42, 54, 0.85); color: #f8f8f2; padding: 10px 16px;
           border-radius: 14px; font-size: 17px; font-weight: bold; }
 .flash { background: #ffffff; }
+.ask { background: rgba(40, 42, 54, 0.95); padding: 28px 36px; border-radius: 28px;
+       border: 3px solid #bd93f9; }
+.ask-title { color: #f8f8f2; font-size: 24px; font-weight: bold; }
+.ask-hint { color: #6272a4; font-size: 15px; }
+.ask .round { min-width: 130px; min-height: 64px; }
 """
 
 
@@ -54,6 +60,7 @@ class Camera(Gtk.Application):
         self.rec_lock = threading.Lock()
         self.pending = False
         self.busy = False
+        self.asking = False
 
     # ---------- window ----------
     def do_activate(self):
@@ -110,6 +117,28 @@ class Camera(Gtk.Application):
         button("exit", "EXIT", lambda _: self.quit_app(), "exit")
         overlay.add_overlay(side)
 
+        # Back key (deck-close.sh sends SIGUSR1): confirm before closing
+        self.ask = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18,
+                           halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, visible=False)
+        self.ask.add_css_class("ask")
+        title = Gtk.Label(label="Close Camera?")
+        title.add_css_class("ask-title")
+        hint = Gtk.Label(label="Y or Enter to close, N or Esc to cancel")
+        hint.add_css_class("ask-hint")
+        row = Gtk.Box(spacing=18, halign=Gtk.Align.CENTER)
+        for text, handler, cls in (("CLOSE", self.quit_app, "exit"), ("CANCEL", self.hide_ask, None)):
+            b = Gtk.Button(label=text)
+            b.add_css_class("round")
+            if cls:
+                b.add_css_class(cls)
+            b.connect("clicked", lambda _b, h=handler: h())
+            row.append(b)
+        for w in (title, hint, row):
+            self.ask.append(w)
+        overlay.add_overlay(self.ask)
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, self.show_ask)
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: self.quit_app() or False)
+
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", self.on_key)
         self.win.add_controller(keys)
@@ -122,6 +151,12 @@ class Camera(Gtk.Application):
         self.start_stream()
 
     def on_key(self, _ctrl, keyval, _code, _state):
+        if self.asking:
+            if keyval in (Gdk.KEY_y, Gdk.KEY_Y, Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+                self.quit_app()
+            elif keyval in (Gdk.KEY_n, Gdk.KEY_N, Gdk.KEY_Escape):
+                self.hide_ask()
+            return True
         if keyval == Gdk.KEY_Escape:
             self.quit_app()
         elif keyval == Gdk.KEY_space:
@@ -302,6 +337,15 @@ class Camera(Gtk.Application):
         if self.rec:
             self.toggle_record()
         self.stop_stream()
+
+    def show_ask(self):
+        self.asking = True
+        self.ask.set_visible(True)
+        return True                     # keep the signal handler
+
+    def hide_ask(self):
+        self.asking = False
+        self.ask.set_visible(False)
 
     def quit_app(self):
         self.cleanup()

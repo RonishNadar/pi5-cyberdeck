@@ -609,7 +609,7 @@ Reading positions, bookmarks and settings are saved in `~/.config/deck/reader.js
 
 ## Keyboard shortcuts
 
-These work everywhere on the deck. Sway handles F2 to F8 (see the `deck media keys` block in `home/.config/sway/config` and `home/bin/deck-media.sh`), and F1 is set in `.tmux.conf`.
+These work everywhere on the deck. Sway handles F2 to F8 and Back (see the `deck media keys` block in `home/.config/sway/config` and `home/bin/deck-media.sh`), and F1 is set in `.tmux.conf`.
 
 | Key | Action |
 |---|---|
@@ -618,6 +618,7 @@ These work everywhere on the deck. Sway handles F2 to F8 (see the `deck media ke
 | F3 | mute |
 | F4 / F5 | system volume down / up |
 | F6 / F7 / F8 | previous / play-pause / next (spotifyd or any MPRIS player) |
+| Back (the keyboard's `XF86Back` key) | close the current app after a confirm (`y`/Enter close, `n`/Esc cancel). `main`, `apps`, `settings` and terminal tabs are never closed. The app gets SIGTERM first (Notes saves the open note, Camera stops recording), and the tab is force-closed after 3 s. See `home/bin/deck-close.sh` |
 
 Both the plain F keys and the media key codes (`XF86AudioPlay` and so on) are bound, so the keys work with Fn lock on or off.
 

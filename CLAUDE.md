@@ -47,6 +47,9 @@ are editing the live system.
   gaps, `xwayland disable`, `hide_cursor 500`, cursor theme `DeckCircle`, `exec ~/bin/deck-session.sh`.
   It also holds the **media keys block** (`# >>> deck media keys` ... `# <<< deck media keys`):
   F2 to F8 and the XF86 media keys call `~/bin/deck-media.sh`.
+  `XF86Back` calls `~/bin/deck-close.sh`: tmux popup confirm on the foot client, then SIGTERM to the
+  tab's foreground job and `kill-window` after 3 s. Terminal tabs (no start command or a bare shell)
+  and main/apps/settings are skipped. Camera gets SIGUSR1 and confirms in its own window.
 - `deck-session.sh` runs `foot -e deck.sh`, which attaches or creates tmux session `deck` with
   windows `main`, `apps` (`~/bin/launcher.py`) and `settings` (`~/bin/settings.py`).
 - tmux (`~/.tmux.conf`): Dracula theme via TPM, `@dracula-plugins "custom:deck-status.sh time"`
