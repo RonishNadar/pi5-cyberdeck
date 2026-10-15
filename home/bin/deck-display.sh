@@ -8,7 +8,7 @@ print(outs[0]["model"] if outs else "")' 2>/dev/null)
 
 case "$model" in
   MPI7002)   # 7" HDMI Display-C, 1024x600
-    size=12; line=14; pad=10x6 ;;
+    size=10; line=12; pad=8x4 ;;
   *)         # Waveshare 5.5" 1440x2560 (our own EDID) and anything unknown
     size=28; line=32; pad=24x16 ;;
 esac
