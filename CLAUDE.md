@@ -36,6 +36,10 @@ are editing the live system.
   under `[all]`. There may be a temporary `arm_freq=1800` (remove it after the power upgrade).
 - Boot splash: a Plymouth script theme in `/usr/share/plymouth/themes/deck`, selected with
   `update-alternatives` (`plymouth-set-default-theme` does not exist here).
+- Second panel: 7" HDMI Display-C (1024x600, own EDID with audio, model `MPI7002`, USB touch
+  "QDTECH MPI7002"). It goes on **HDMI-A-2**; the forced EDID only covers HDMI-A-1 (Waveshare).
+  Per-panel settings are picked by model: `~/bin/deck-display.sh` (foot size/line-height/pad, used by
+  `deck-session.sh`), sway `output "MPI MPI7002 MPI7002"`, and `ROTATE_BY_NAME` in touch-mouse.py.
 
 ## Session stack
 - tty1 autologin, then `~/.bash_profile` (first line sources `~/.bashrc`), then `exec sway`.
@@ -50,9 +54,11 @@ are editing the live system.
   symlink to `~/bin/deck-status.sh`. `prefix2 F1`. A bottom footer is drawn on the pane border by
   `~/bin/deck-footer.sh`. The last line is `source-file -q ~/.config/deck/accent.tmux`.
 - foot uses JetBrainsMono Nerd Font (use the non-Mono variant so icons render full size). foot only
-  reads its config at start, so restarting the display (`swaymsg exit`) is needed after font
+  reads its config at start (font size, line-height and pad are overridden per panel by
+  `deck-session.sh`, so change those in `deck-display.sh`, not foot.ini), so restarting the display (`swaymsg exit`) is needed after font
   changes. tmux keeps running and the session reattaches.
-- Touch: `/usr/local/bin/touch-mouse.py` (systemd `touch-mouse.service`, `ROTATE=1`) turns the
+- Touch: `/usr/local/bin/touch-mouse.py` (systemd `touch-mouse.service`, `ROTATE=3` default,
+  per-controller overrides in `ROTATE_BY_NAME`) turns the
   touchscreen into an absolute uinput mouse, with tap, drag and long-press. The cursor grows while
   touching (via sway IPC).
 

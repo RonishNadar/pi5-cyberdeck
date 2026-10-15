@@ -294,6 +294,9 @@ Afterwards, `nmcli device status` should show `wlan0 connected`.
   sudo sed -i "s/ROTATE=$cur/ROTATE=$nxt/" /etc/systemd/system/touch-mouse.service
   sudo systemctl daemon-reload && sudo systemctl restart touch-mouse && echo "ROTATE is now $nxt"
   ```
+
+  That `ROTATE` is the default (the Waveshare). Panels listed in `ROTATE_BY_NAME` at the top of `touch-mouse.py` get their own rotation, matched by the touch controller's name.
+- **Other displays:** the deck adapts to the connected panel by its model name. `~/bin/deck-display.sh` picks the foot font size and padding (the 7" [HDMI Display-C](https://www.lcdwiki.com/7inch_HDMI_Display-C), 1024x600, gets size 14; everything else gets the Waveshare's size 28), the sway config has an `output "<make> <model> <serial>"` line per panel, and `touch-mouse.py` picks the touch rotation. Panels that send their own EDID go in the port next to the audio jack (`HDMI-A-2`); keep the Waveshare in `HDMI-A-1`, because the forced EDID only applies there. To add a panel, get its model from `swaymsg -t get_outputs`, then add a case to `deck-display.sh`, an `output` line, and (if needed) a `ROTATE_BY_NAME` entry.
 - **Cursor:** the `DeckCircle` theme is a purple ring with a pink dot (96 px, 160 px when pressed). `touch-mouse.py` tells sway to switch sizes over sway's IPC socket. `seat seat0 hide_cursor 500` hides it after half a second.
 
 ### 8. Audio over HDMI

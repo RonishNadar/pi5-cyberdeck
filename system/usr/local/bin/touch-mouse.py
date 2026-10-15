@@ -6,6 +6,10 @@ import evdev
 from evdev import ecodes as e, UInput, AbsInfo
 
 ROTATE = int(os.environ.get("ROTATE", "1"))   # 0-3, matches the display rotation
+# Touch controllers whose panel needs a different rotation than ROTATE.
+ROTATE_BY_NAME = {
+    "MPI7002": 0,    # 7" HDMI Display-C (1024x600, landscape native)
+}
 LONG_PRESS = 0.6                               # seconds for right click
 MOVE_FRAC = 0.015                              # movement that turns a tap into a drag
 
@@ -18,8 +22,14 @@ def find_touch():
             return d
     return None
 
-def rotate(u, v):
-    return {0: (u, v), 1: (1 - v, u), 2: (1 - u, 1 - v), 3: (v, 1 - u)}[ROTATE]
+def rotation_for(dev):
+    for key, rot in ROTATE_BY_NAME.items():
+        if key in dev.name:
+            return rot
+    return ROTATE
+
+def rotate(u, v, rot):
+    return {0: (u, v), 1: (1 - v, u), 2: (1 - u, 1 - v), 3: (v, 1 - u)}[rot]
 
 def main():
     dev = None
@@ -28,6 +38,7 @@ def main():
         if dev is None:
             time.sleep(2)
     xi, yi = dev.absinfo(e.ABS_X), dev.absinfo(e.ABS_Y)
+    rot = rotation_for(dev)
     ui = UInput({e.EV_KEY: [e.BTN_LEFT, e.BTN_RIGHT, e.BTN_MIDDLE],
                  e.EV_ABS: [(e.ABS_X, AbsInfo(0, 0, 65535, 0, 0, 0)),
                             (e.ABS_Y, AbsInfo(0, 0, 65535, 0, 0, 0))]},
@@ -37,7 +48,7 @@ def main():
     def norm(x, y):
         u = (x - xi.min) / max(1, xi.max - xi.min)
         v = (y - yi.min) / max(1, yi.max - yi.min)
-        return rotate(min(max(u, 0), 1), min(max(v, 0), 1))
+        return rotate(min(max(u, 0), 1), min(max(v, 0), 1), rot)
 
     def move(x, y):
         u, v = norm(x, y)
