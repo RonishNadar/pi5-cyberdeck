@@ -12,14 +12,12 @@ are editing the live system.
 - Camera: IMX708 Wide NoIR (Camera Module 3 type) on **CAM1**. It reports module ID 0x0000, so the
   tuning file is forced to `imx708_wide_noir.json`.
 - USB keyboard with media F keys. Audio comes out of the panel's 3.5 mm jack over HDMI.
-- Power: the current supply is weak (the camera once caused a brown-out). Planned (changed
-  2026-10-12): a **1S** Li-ion/LiPo cell, 3.7 V 10000 mAh, with an **INA228** on I2C (0x40, pins
-  1/3/5/6). `~/bin/deck-battery` reads it (defaults `cells: 1`, 0.015 ohm shunt; overrides in
-  `~/.config/deck/battery.json`). The older 2S plan (2S charger and BMS, TPS565201 buck to 5.1 V,
-  INA219) is dropped: a buck cannot make 5.1 V from one cell, so 1S needs a boost converter good for
-  about 5.1 V 5 A (roughly 8 A from the cell at full load). Charger, protection and boost parts are not
-  chosen yet; keep the 5 A fuse, switch and USB-C pigtail to the Pi. Nothing can mount under the Pi,
-  because the display is there.
+- Power: runs on a **2S** Li-ion pack (two 3.7 V 10000 mAh cells in series: 7.4 V nominal, 8.4 V full,
+  10 Ah), in use since 2026-10-17 (the 1S plan from 2026-10-12 is dropped). An **INA228** on I2C (0x40,
+  pins 1/3/5/6) sits in the battery line; `~/bin/deck-battery` reads it (defaults `cells: 2`,
+  `capacity_mah: 10000`, 0.015 ohm shunt; overrides in `~/.config/deck/battery.json`). Typical draw is
+  about 0.8 A at 8 V (6 W). Keep the 5 A fuse and switch. Nothing can mount under the Pi, because the
+  display is there.
 
 ## Boot and display (Ubuntu-specific gotchas)
 - Ubuntu boots the Pi with `os_prefix=current/`. The kernel cmdline that is actually used is
@@ -167,10 +165,10 @@ are editing the live system.
 - Ask before rebooting, restarting the display, or anything that could drop the network.
 
 ## Open items
-- Battery build: wire it. The footer block (`bat`, via `deck-battery --short`) is done. Still to do: a
+- Battery: wired and read by the INA228. The footer block (`bat`, via `deck-battery --short`) is done. Still to do: a
   Battery entry in Settings, low-battery warnings, and a clean shutdown at a low cell voltage
-  (about 3.2 V per cell; INA228 VBUS register 0x05).
-- After the 5 A power source: `PSU_MAX_CURRENT=5000` in EEPROM (`rpi-eeprom-config --apply`), remove
+  (about 3.2 V per cell, 6.4 V for the pack; INA228 VBUS register 0x05).
+- Now that the battery powers the deck (if its regulator gives 5 A): `PSU_MAX_CURRENT=5000` in EEPROM (`rpi-eeprom-config --apply`), remove
   `arm_freq=1800`, restore the camera preview to 1536x864 at 30 fps.
 - Power button: momentary switch on the Pi 5 J2 (PWR_BTN) header, logind `HandlePowerKey=poweroff`,
   EEPROM `POWER_OFF_ON_HALT=1`, plus a hidden latching master switch in the battery line.

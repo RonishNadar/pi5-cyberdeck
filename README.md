@@ -596,15 +596,15 @@ Reading positions, bookmarks and settings are saved in `~/.config/deck/reader.js
 - **Footer:** `BAT 82% 3h20m` while discharging, a bolt while charging. Green from 50%, yellow from 20%, red below.
 - **Level:** pack voltage per cell on a Li-ion discharge curve (3.27 V empty, 4.20 V full), averaged over recent readings. When current is measured, the voltage sag under load is added back first, and time left is the remaining charge divided by the current draw.
 - **Report:** run `deck-battery` for voltage, current, power, time left and sensor temperature. `deck-battery --json` gives the same as JSON.
-- **Settings:** optional, in `~/.config/deck/battery.json`. The defaults suit a single 3.7 V 10000 mAh cell and the usual 0.015 ohm shunt on INA228 breakout boards:
+- **Settings:** optional, in `~/.config/deck/battery.json`. The defaults suit the deck's 2S pack (two 3.7 V 10000 mAh cells in series: 7.4 V nominal, 10000 mAh) and the usual 0.015 ohm shunt on INA228 breakout boards:
 
 ```json
-{"bus": 1, "address": 64, "cells": 1, "capacity_mah": 10000,
+{"bus": 1, "address": 64, "cells": 2, "capacity_mah": 10000,
  "shunt_ohms": 0.015, "invert_current": false, "internal_ohms": 0.05}
 ```
 
-  Set `cells` to 2 for a 2S pack, `shunt_ohms` to 0 if the sensor only measures voltage, and `invert_current` to true if charging shows as discharging.
-- **Preview without the sensor:** `DECK_BATTERY_FAKE="3.85,1.2" deck-battery` (volts, amps; positive amps = discharging).
+  Set `cells` to 1 for a single cell (`capacity_mah` is the pack capacity, which series cells do not add up), `shunt_ohms` to 0 if the sensor only measures voltage, and `invert_current` to true if charging shows as discharging.
+- **Preview without the sensor:** `DECK_BATTERY_FAKE="7.70,1.2" deck-battery` (volts, amps; positive amps = discharging).
 - **Access:** `/dev/i2c-1` belongs to the `dialout` group. `install-files.sh` adds you to it (it takes effect after the next login), since the seat permission alone does not cover sessions started over SSH.
 
 ## Keyboard shortcuts

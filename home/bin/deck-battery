@@ -7,10 +7,10 @@
   deck-battery --json     everything as JSON
 
 Settings (all optional) in ~/.config/deck/battery.json:
-  bus 1, address 64 (0x40), cells 1 (cells in series), capacity_mah 10000,
+  bus 1, address 64 (0x40), cells 2 (cells in series), capacity_mah 10000 (pack capacity),
   shunt_ohms 0.015 (0 = voltage only), invert_current false (true if charging reads as discharging),
   internal_ohms 0.05 (pack + wiring resistance, used to correct voltage sag under load).
-For testing without the sensor: DECK_BATTERY_FAKE="3.85" or "3.85,1.2" (volts, amps; + = discharging).
+For testing without the sensor: DECK_BATTERY_FAKE="7.70" or "7.70,1.2" (volts, amps; + = discharging).
 """
 import fcntl
 import json
@@ -20,7 +20,7 @@ import time
 
 CFG = os.path.expanduser("~/.config/deck/battery.json")
 CACHE = f"/run/user/{os.getuid()}/deck-battery.json"
-DEFAULTS = {"bus": 1, "address": 0x40, "cells": 1, "capacity_mah": 10000, "shunt_ohms": 0.015,
+DEFAULTS = {"bus": 1, "address": 0x40, "cells": 2, "capacity_mah": 10000, "shunt_ohms": 0.015,
             "invert_current": False, "internal_ohms": 0.05}
 
 I2C_SLAVE = 0x0703
