@@ -22,6 +22,7 @@ HOME = os.path.expanduser("~")
 os.environ["PATH"] = f"{HOME}/bin:{HOME}/.local/bin:/usr/local/bin:" + os.environ.get("PATH", "")
 FOOT_INI = f"{HOME}/.config/foot/foot.ini"
 SWAY_CFG = f"{HOME}/.config/sway/config"
+BATTERY_CFG = f"{HOME}/.config/deck/battery.json"
 
 PURPLE, PINK, CYAN, GREEN = "#bd93f9", "#ff79c6", "#8be9fd", "#50fa7b"
 ORANGE, YELLOW, RED, GRAY, FG = "#ffb86c", "#f1fa8c", "#ff5555", "#6272a4", "#f8f8f2"
@@ -30,6 +31,13 @@ ACCENT = current_accent()
 
 TEXT_SIZES = [("Small", 22), ("Medium", 28), ("Large", 34), ("Extra large", 40)]
 CURSOR_HIDE = [("0.5 seconds", 500), ("1 second", 1000), ("3 seconds", 3000), ("Never", 0)]
+# Battery choices; the defaults match DEFAULTS in ~/bin/deck-battery.
+BATTERY_DEFAULTS = {"cells": 2, "warn_percent": 20, "critical_percent": 10, "shutdown_cell_volts": 3.2}
+BATTERY_CHOICES = {
+    "warn_percent": ("Low warning", "\uf243", [15, 20, 25, 30]),
+    "critical_percent": ("Critical warning", "\uf244", [5, 10, 15]),
+    "shutdown_cell_volts": ("Auto shutdown", "\uf011", [3.0, 3.1, 3.2, 3.3, 0]),
+}
 
 
 # ---------- helpers ----------
@@ -105,6 +113,56 @@ def text_size() -> int:
 def cursor_hide() -> int:
     m = re.search(r"hide_cursor (\d+)", open(SWAY_CFG).read()) if os.path.exists(SWAY_CFG) else None
     return int(m.group(1)) if m else 0
+
+
+def battery():
+    """deck-battery --json as a dict, or None without the sensor."""
+    try:
+        return json.loads(sh("deck-battery --json") or "null")
+    except ValueError:
+        return None
+
+
+def battery_cfg():
+    try:
+        with open(BATTERY_CFG) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def battery_setting(key):
+    return battery_cfg().get(key, BATTERY_DEFAULTS[key])
+
+
+def save_battery_setting(key, value):
+    c = battery_cfg()
+    c[key] = value
+    with open(BATTERY_CFG + ".tmp", "w") as f:
+        json.dump(c, f, indent=1)
+    os.replace(BATTERY_CFG + ".tmp", BATTERY_CFG)
+
+
+def battery_label(key, v):
+    if key == "shutdown_cell_volts":
+        return "Off" if not v else f"at {v:.1f} V per cell ({v * battery_setting('cells'):.1f} V)"
+    return f"at {v}%"
+
+
+def battery_look(st):
+    """Icon and color for a battery status, matching the footer (green 50+, yellow 20+, red)."""
+    pct = st["percent"]
+    color = GREEN if pct >= 50 else YELLOW if pct >= 20 else RED
+    if st["state"] == "charging":
+        return "\uf0e7", color
+    return ["\uf244", "\uf243", "\uf242", "\uf241", "\uf240"][min(4, (pct + 12) // 25)], color
+
+
+def hm(hours):
+    if hours is None:
+        return "-"
+    m = int(hours * 60)
+    return f"{m // 60}h{m % 60:02d}m" if m >= 60 else f"{m}m"
 
 
 # ---------- screens ----------
@@ -246,10 +304,18 @@ class Settings(PrefsMixin, NetMixin, App):
         pct, muted = volume()
         vol = "no audio" if pct is None else (f"muted ({pct}%)" if muted else f"{pct}%")
         hide = cursor_hide()
+        bat = battery()
+        bat_item = []
+        if bat:
+            icon, color = battery_look(bat)
+            left = {"discharging": f", {hm(bat['hours'])} left",
+                    "charging": f", full in {hm(bat['hours'])}"}.get(bat["state"], "")
+            bat_item = [item("battery", icon, "Battery", f"{bat['percent']}% {bat['state']}{left}", color)]
         return [
             item("wifi", "\uf1eb", "Wi-Fi", wifi_ssid(), ORANGE),
             item("bt", "\uf293", "Bluetooth", bt_state(), PINK),
             item("sound", "\uf028", "Sound", vol, YELLOW),
+            *bat_item,
             item("display", "\uf108", "Display",
                  f"text {text_size()}, cursor hides {'never' if hide == 0 else f'after {hide} ms'}", CYAN),
             *self.prefs_main_items(),
@@ -267,6 +333,8 @@ class Settings(PrefsMixin, NetMixin, App):
             self.push_screen(Menu("Sound", self.sound_items, self.sound_pick))
         elif oid == "display":
             self.push_screen(Menu("Display", self.display_items, self.display_pick))
+        elif oid == "battery":
+            self.push_screen(Menu("Battery", self.battery_items, self.battery_pick))
         elif oid in ("datetime", "notify", "footer", "theme"):
             self.prefs_open(oid)
         elif oid == "about":
@@ -330,6 +398,49 @@ class Settings(PrefsMixin, NetMixin, App):
             v = int(oid[5:])
             sh(f"sed -i -E 's/hide_cursor [0-9]+/hide_cursor {v}/' {SWAY_CFG}")
             swaymsg("seat", "seat0", "hide_cursor", str(v))
+
+    # battery
+    def battery_items(self):
+        st = battery()
+        if not st:
+            return [item("none", "\uf05e", "No battery sensor found", "check the INA228 wiring", GRAY,
+                         disabled=True)]
+        icon, color = battery_look(st)
+        left = {"discharging": "left", "charging": "to full"}.get(st["state"])
+        rows = [heading("Status"),
+                item("s:level", icon, "Level", f"{st['percent']}%   {st['state']}", color),
+                item("s:time", "\uf017", "Time", f"{hm(st['hours'])} {left}" if left else "-", CYAN),
+                item("s:volts", "\uf0e7", "Voltage",
+                     f"{st['volts']:.2f} V   {st['volts'] / st['cells']:.2f} V per cell", CYAN),
+                item("s:amps", "\uf1e6", "Current", f"{st['amps']:+.2f} A   {st['watts']:+.1f} W", CYAN)]
+        if st["die_temp"] is not None:
+            rows.append(item("s:temp", "\uf2c9", "Sensor", f"{st['die_temp']:.0f} C", CYAN))
+        rows += [heading(""), heading("Warnings and shutdown")]
+        rows += [item(f"set:{key}", ic, label, battery_label(key, battery_setting(key)), ORANGE)
+                 for key, (label, ic, _) in BATTERY_CHOICES.items()]
+        return rows
+
+    def battery_pick(self, menu, oid):
+        if oid.startswith("set:"):
+            key = oid[4:]
+            self.push_screen(Menu(BATTERY_CHOICES[key][0], lambda: self.battery_choice_items(key),
+                                  self.battery_choice_pick))
+
+    def battery_choice_items(self, key):
+        label, icon, values = BATTERY_CHOICES[key]
+        cur = battery_setting(key)
+        return [item(f"{key}={v}", icon, battery_label(key, v), DOT + "current" if v == cur else "", ORANGE)
+                for v in values]
+
+    def battery_choice_pick(self, menu, oid):
+        key, _, v = oid.partition("=")
+        if key not in BATTERY_CHOICES:
+            return
+        save_battery_setting(key, float(v) if key == "shutdown_cell_volts" else int(v))
+        if key == "shutdown_cell_volts" and not float(v):
+            self.notify("Automatic shutdown is off: an empty battery will cut the power without warning.",
+                        severity="warning")
+        self.pop_screen()
 
     # power
     def power_items(self):

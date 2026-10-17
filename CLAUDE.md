@@ -67,7 +67,7 @@ are editing the live system.
   touching (via sway IPC).
 
 ## Deck apps (all in `~/bin`, Python apps use the venv `~/.venvs/deck`, Textual 8.x)
-- `launcher.py` (Apps tab), `settings.py` + `deck_net.py` (Wi-Fi via nmcli, Bluetooth via
+- `launcher.py` (Apps tab), `settings.py` (incl. Battery page) + `deck_net.py` (Wi-Fi via nmcli, Bluetooth via
   bluetoothctl) + `deck_prefs.py` (date/time, notifications, footer blocks, accent color).
   Navigation: arrows, Right/Enter = open, Left/Esc = back.
 - `deck_ui.py`: `install()` monkeypatches OptionList to put a blank, unselectable row between items.
@@ -165,11 +165,12 @@ are editing the live system.
 - Ask before rebooting, restarting the display, or anything that could drop the network.
 
 ## Open items
-- Battery: wired and read by the INA228. Done: footer block (`bat`, via `deck-battery --short`), and
+- Battery: wired and read by the INA228, all software done: footer block (`bat`, via `deck-battery --short`), and
   `deck-battery --check` from `deck-watch.sh` (warnings at 20%/10%, poweroff after two readings at
   or below 3.2 V per cell; state in `~/.local/state/deck/battery-check.json`; test with
   `DECK_BATTERY_FAKE`, `DECK_BATTERY_STATE` (scratch file) and `DECK_BATTERY_DRYRUN=1`).
-  Still to do: a Battery entry in Settings.
+  Settings > Battery (settings.py, `battery_*` helpers) shows the live readings and writes
+  warn/critical/shutdown to `battery.json` (`BATTERY_CFG`; point it at a scratch file in tests).
 - Now that the battery powers the deck (if its regulator gives 5 A): `PSU_MAX_CURRENT=5000` in EEPROM (`rpi-eeprom-config --apply`), remove
   `arm_freq=1800`, restore the camera preview to 1536x864 at 30 fps.
 - Power button: momentary switch on the Pi 5 J2 (PWR_BTN) header, logind `HandlePowerKey=poweroff`,
