@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deck-status.sh: phone-style Wi-Fi and Bluetooth icons for the tmux header
+# deck-status.sh: phone-style Wi-Fi, Bluetooth and battery icons for the tmux header
 
 wifi() {
   local dev q
@@ -29,4 +29,22 @@ bt() {
   fi
 }
 
-printf '%s   %s \n' "$(wifi)" "$(bt)"
+battery() {   # icon and percent, nothing without the INA228 (see deck-battery)
+  local pct state step
+  local charging=(f089c f0086 f0087 f0088 f089d f0089 f089e f008a f008b f0085)   # md-battery_charging_10 .. _100
+  set -- $("$HOME/bin/deck-battery" --short 2>/dev/null)
+  [ -n "$1" ] || return
+  pct=$1; state=$2
+  step=$(( (pct + 5) / 10 ))                           # nearest 10%, 0-10
+  if [ "$state" = charging ]; then
+    [ "$step" -lt 1 ] && step=1
+    printf "\\U000${charging[step - 1]}"
+  elif [ "$pct" -lt 10 ]; then printf '\U000f0083'     # alert
+  elif [ "$step" -ge 10 ]; then printf '\U000f0079'    # full
+  else printf "\\U000$(printf '%x' $((0xf0079 + step)))"   # md-battery_10 .. _90
+  fi
+  printf ' %s%%' "$pct"
+}
+
+bat=$(battery)
+printf '%s   %s%s \n' "$(wifi)" "$(bt)" "${bat:+   $bat}"

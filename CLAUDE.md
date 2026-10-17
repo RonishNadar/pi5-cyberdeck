@@ -54,7 +54,7 @@ are editing the live system.
 - `deck-session.sh` runs `foot -e deck.sh`, which attaches or creates tmux session `deck` with
   windows `main`, `apps` (`~/bin/launcher.py`) and `settings` (`~/bin/settings.py`).
 - tmux (`~/.tmux.conf`): Dracula theme via TPM, `@dracula-plugins "custom:deck-status.sh time"`
-  (phone-style Wi-Fi bars and Bluetooth icons). `~/.tmux/plugins/tmux/scripts/deck-status.sh` is a
+  (phone-style Wi-Fi bars, Bluetooth and battery icons; the battery shows only with the INA228). `~/.tmux/plugins/tmux/scripts/deck-status.sh` is a
   symlink to `~/bin/deck-status.sh`. `prefix2 F1`. A bottom footer is drawn on the pane border by
   `~/bin/deck-footer.sh`. The last line is `source-file -q ~/.config/deck/accent.tmux`.
 - foot uses JetBrainsMono Nerd Font (use the non-Mono variant so icons render full size). foot only

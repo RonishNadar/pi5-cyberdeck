@@ -56,7 +56,7 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - **Touch that behaves like a mouse.** Tap to click, drag to select, long-press for right click, with a ring cursor that grows when you touch and hides after half a second.
 - **Three tabs at boot:** `main` (a shell), `apps` (a text menu that opens apps in their own tabs), `settings` (Wi-Fi, Bluetooth, sound, display, date and time, notifications, footer, theme, about, updates, power).
 - **Dracula theme** across foot, tmux, Starship, Neovim, yazi, lazygit, btop, cmus, newsboat, aerc, termshark and the menus, with a selectable accent color.
-- **A header and a footer.** Header: tabs, Wi-Fi name, date and time. Footer: next appointment, IP, CPU, memory, disk, uptime, weather, battery. Each block can be turned on and off.
+- **A header and a footer.** Header: tabs, Wi-Fi signal, Bluetooth, battery level (icon and percent, a bolt while charging), date and time. Footer: next appointment, IP, CPU, memory, disk, uptime, weather, battery. Each block can be turned on and off.
 - **Notifications** in the header (with sounds) for long-running commands, calendar reminders, high temperature, a full disk or undervoltage.
 - **HDMI audio** through the panel's 3.5 mm jack, plus Bluetooth headphones.
 - **Remote access** over SSH (`cyberdeck.local`) and optionally Tailscale.
@@ -593,6 +593,7 @@ Reading positions, bookmarks and settings are saved in `~/.config/deck/reader.js
 
 `~/bin/deck-battery` reads an INA228 power monitor over I2C and feeds the **BAT** block at the right end of the footer. The block stays hidden until the sensor answers, so nothing changes before it is wired.
 
+- **Header:** a phone-style battery icon (in 10% steps, a warning icon below 10%, a bolt while charging) and the percentage, right of the Bluetooth icon.
 - **Footer:** `BAT 82% 3h20m` while discharging, a bolt while charging. Green from 50%, yellow from 20%, red below.
 - **Level:** pack voltage per cell on a Li-ion discharge curve (3.27 V empty, 4.20 V full), averaged over recent readings. When current is measured, the voltage sag under load is added back first, and time left is the remaining charge divided by the current draw.
 - **Warnings and shutdown:** the one-minute `deck-watch` timer runs `deck-battery --check`. While discharging it shows a banner with a sound at 20% (low) and 10% (critical), each once until the level rises 5% above it again or a charger is connected. When the pack drops to 3.2 V per cell (6.4 V) it warns that the deck will shut down in a minute; if the next reading is still that low and no charger is connected, it runs `systemctl poweroff`. Thresholds are `warn_percent`, `critical_percent` and `shutdown_cell_volts` (0 turns the shutdown off) in the settings below.
