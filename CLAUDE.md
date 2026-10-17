@@ -113,7 +113,7 @@ are editing the live system.
 - Textual key names: `[` is `left_square_bracket`, `]` `right_square_bracket`, `.` `full_stop`.
 - `deck-battery` (INA228 over raw `/dev/i2c-1`, stdlib only; prints nothing without the sensor),
   `lanscan.py` (nmap TUI), `notify` (tmux banners + sounds, honors `~/.config/deck/flags/*`),
-  `deck-watch.sh` (user timer: temp, disk, undervoltage), `deck-footer.sh`, `deck-status.sh`,
+  `deck-watch.sh` (user timer: temp, disk, undervoltage, low battery), `deck-footer.sh`, `deck-status.sh`,
   `deck-media.sh`, `make-logo.sh`.
 
 ## Services and system pieces
@@ -165,9 +165,11 @@ are editing the live system.
 - Ask before rebooting, restarting the display, or anything that could drop the network.
 
 ## Open items
-- Battery: wired and read by the INA228. The footer block (`bat`, via `deck-battery --short`) is done. Still to do: a
-  Battery entry in Settings, low-battery warnings, and a clean shutdown at a low cell voltage
-  (about 3.2 V per cell, 6.4 V for the pack; INA228 VBUS register 0x05).
+- Battery: wired and read by the INA228. Done: footer block (`bat`, via `deck-battery --short`), and
+  `deck-battery --check` from `deck-watch.sh` (warnings at 20%/10%, poweroff after two readings at
+  or below 3.2 V per cell; state in `~/.local/state/deck/battery-check.json`; test with
+  `DECK_BATTERY_FAKE`, `DECK_BATTERY_STATE` (scratch file) and `DECK_BATTERY_DRYRUN=1`).
+  Still to do: a Battery entry in Settings.
 - Now that the battery powers the deck (if its regulator gives 5 A): `PSU_MAX_CURRENT=5000` in EEPROM (`rpi-eeprom-config --apply`), remove
   `arm_freq=1800`, restore the camera preview to 1536x864 at 30 fps.
 - Power button: momentary switch on the Pi 5 J2 (PWR_BTN) header, logind `HandlePowerKey=poweroff`,

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Warn about high temperature, a full disk, or undervoltage (once per change)
+# Warn about high temperature, a full disk, undervoltage (once per change) and a low battery
 state=${XDG_STATE_HOME:-$HOME/.local/state}/deck/watch
 mkdir -p "$state"
 
@@ -22,3 +22,6 @@ for h in /sys/class/hwmon/hwmon*; do
   [ "$(cat "$h/name" 2>/dev/null)" = "rpi_volt" ] && [ "$(cat "$h/in0_lcrit_alarm" 2>/dev/null)" = 1 ] && uv=1
 done
 check power $uv "Undervoltage detected: check the power supply" "Power supply voltage back to normal"
+
+# Low battery: warnings at 20% and 10%, power off when the cells reach 3.2 V (see deck-battery)
+~/bin/deck-battery --check

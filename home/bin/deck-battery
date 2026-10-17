@@ -5,23 +5,32 @@
   deck-battery --short    "PCT STATE TIME" for the footer, e.g. "82 discharging 3h20m"
                           (STATE: discharging, charging, idle). Prints nothing if no sensor.
   deck-battery --json     everything as JSON
+  deck-battery --check    low-battery warnings and shutdown (run every minute by deck-watch.sh)
 
 Settings (all optional) in ~/.config/deck/battery.json:
   bus 1, address 64 (0x40), cells 2 (cells in series), capacity_mah 10000 (pack capacity),
   shunt_ohms 0.015 (0 = voltage only), invert_current false (true if charging reads as discharging),
-  internal_ohms 0.05 (pack + wiring resistance, used to correct voltage sag under load).
+  internal_ohms 0.05 (pack + wiring resistance, used to correct voltage sag under load),
+  warn_percent 20, critical_percent 10, shutdown_cell_volts 3.2 (0 = never shut down).
 For testing without the sensor: DECK_BATTERY_FAKE="7.70" or "7.70,1.2" (volts, amps; + = discharging).
 """
 import fcntl
 import json
 import os
+import subprocess
 import sys
 import time
 
 CFG = os.path.expanduser("~/.config/deck/battery.json")
 CACHE = f"/run/user/{os.getuid()}/deck-battery.json"
+# --check remembers which warning was shown; DECK_BATTERY_STATE and DECK_BATTERY_DRYRUN are for tests.
+STATE = os.environ.get("DECK_BATTERY_STATE") or os.path.join(
+    os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "deck", "battery-check.json")
+NOTIFY = os.path.expanduser("~/bin/notify")
+REARM = 5                   # percent above a threshold before its warning can show again
 DEFAULTS = {"bus": 1, "address": 0x40, "cells": 2, "capacity_mah": 10000, "shunt_ohms": 0.015,
-            "invert_current": False, "internal_ohms": 0.05}
+            "invert_current": False, "internal_ohms": 0.05,
+            "warn_percent": 20, "critical_percent": 10, "shutdown_cell_volts": 3.2}
 
 I2C_SLAVE = 0x0703
 REG_VSHUNT, REG_VBUS, REG_DIETEMP = 0x04, 0x05, 0x06
@@ -145,10 +154,69 @@ def hm(hours):
     return f"{m // 60}h{m % 60:02d}m" if m >= 60 else f"{m}m"
 
 
+def notify(level, secs, msg):
+    if os.environ.get("DECK_BATTERY_DRYRUN"):
+        print(f"notify {level}: {msg}")
+    else:
+        subprocess.run([NOTIFY, "-l", level, "-s", "-t", str(secs), msg])
+
+
+def check(st):
+    """Warn once per level as the battery runs down; power off when the cells are nearly empty.
+
+    The shutdown needs two low readings in a row (one minute apart): the first gives a warning and
+    the chance to plug in a charger, the second powers off."""
+    c = config()
+    try:
+        with open(STATE) as f:
+            prev = json.load(f)
+    except (OSError, ValueError):
+        prev = {}
+    level, pct = prev.get("level", "ok"), st["percent"]
+    cell = st["volts"] / st["cells"]
+    if st["state"] == "charging":
+        if level != "ok":
+            notify("ok", 6, f"Battery charging: {pct}%")
+        level = "ok"
+    elif c["shutdown_cell_volts"] and cell <= c["shutdown_cell_volts"]:
+        if level == "shutdown":
+            notify("error", 30, "Battery empty: shutting down now")
+            if not os.environ.get("DECK_BATTERY_DRYRUN"):
+                subprocess.run(["systemctl", "poweroff"])
+        else:
+            notify("error", 55, f"Battery empty ({cell:.2f} V per cell): shutting down in 1 minute. "
+                                "Plug in the charger to stop it.")
+        level = "shutdown"
+    elif pct <= c["critical_percent"]:
+        if level not in ("critical", "shutdown"):
+            notify("error", 20, f"Battery critical: {pct}%, {hm(st['hours'])} left. Plug in the charger.")
+        level = "critical"
+    elif pct <= c["warn_percent"]:
+        if level == "ok":
+            notify("warn", 10, f"Battery low: {pct}%, {hm(st['hours'])} left")
+        # Stay "critical" until the level is clearly above it, so a reading that wobbles around
+        # the threshold does not warn again and again.
+        if level != "critical" or pct > c["critical_percent"] + REARM:
+            level = "low"
+    elif pct > c["warn_percent"] + REARM or level == "ok":
+        level = "ok"
+    else:
+        level = "low"
+    try:
+        os.makedirs(os.path.dirname(STATE), exist_ok=True)
+        with open(STATE, "w") as f:
+            json.dump({"level": level, "percent": pct, "t": time.time()}, f)
+    except OSError:
+        pass
+
+
 def main():
     st = status()
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
-    if arg == "--short":
+    if arg == "--check":
+        if st:
+            check(st)
+    elif arg == "--short":
         if st:
             print(st["percent"], st["state"], hm(st["hours"]))
     elif arg == "--json":
