@@ -170,6 +170,12 @@ are editing the live system.
   `deck-battery --check` from `deck-watch.sh` (warnings at 20%/10%, poweroff after two readings at
   or below 3.2 V per cell; state in `~/.local/state/deck/battery-check.json`; test with
   `DECK_BATTERY_FAKE`, `DECK_BATTERY_STATE` (scratch file) and `DECK_BATTERY_DRYRUN=1`).
+  The level is a coulomb-counting gauge (`gauge()`): INA228 CHARGE register (SHUNT_CAL and ADC
+  averaging are written on each read, the chip forgets them on power loss), voltage only anchors and
+  slowly corrects (not while charging), learned pack resistance in `~/.local/state/deck/battery-ohms`,
+  state in `/run/user/1000/deck-battery.json`. All chip access holds `flock` on the i2c fd: concurrent
+  readers (header, Settings, timer) used to read each other's registers. Fake readings are stateless
+  unless `DECK_BATTERY_CACHE` points at a scratch file.
   Settings > Battery (settings.py, `battery_*` helpers) shows the live readings and writes
   warn/critical/shutdown to `battery.json` (`BATTERY_CFG`; point it at a scratch file in tests).
 - Now that the battery powers the deck (if its regulator gives 5 A): `PSU_MAX_CURRENT=5000` in EEPROM (`rpi-eeprom-config --apply`), remove

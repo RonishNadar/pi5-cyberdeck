@@ -10,22 +10,32 @@
 Settings (all optional) in ~/.config/deck/battery.json:
   bus 1, address 64 (0x40), cells 2 (cells in series), capacity_mah 10000 (pack capacity),
   shunt_ohms 0.015 (0 = voltage only), invert_current false (true if charging reads as discharging),
-  internal_ohms 0.05 (pack + wiring resistance, used to correct voltage sag under load),
+  internal_ohms 0.05 (pack + wiring resistance, the starting value; it is then learned from load
+  changes and used to correct voltage sag under load),
   warn_percent 20, critical_percent 10, shutdown_cell_volts 3.2 (0 = never shut down).
 For testing without the sensor: DECK_BATTERY_FAKE="7.70" or "7.70,1.2" (volts, amps; + = discharging).
+Fake readings keep no state unless DECK_BATTERY_CACHE names a (scratch) state file.
+
+How the level is worked out: the INA228 counts every coulomb in and out of the pack in hardware
+(the CHARGE register), so the level follows that count and does not jump with the load. The
+voltage curve only anchors it (when the deck starts) and slowly pulls it back if the count drifts
+(time constant TRUST_TAU). The shown percent only falls while discharging and only rises while
+charging. Without a shunt (shunt_ohms 0) the current is integrated in software from samples.
 """
 import fcntl
 import json
+import math
 import os
 import subprocess
 import sys
 import time
 
 CFG = os.path.expanduser("~/.config/deck/battery.json")
-CACHE = f"/run/user/{os.getuid()}/deck-battery.json"
+CACHE = f"/run/user/{os.getuid()}/deck-battery.json"   # gauge state, starts fresh on every boot
+STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "deck")
+OHMS_FILE = os.path.join(STATE_DIR, "battery-ohms")      # learned pack resistance, kept across boots
 # --check remembers which warning was shown; DECK_BATTERY_STATE and DECK_BATTERY_DRYRUN are for tests.
-STATE = os.environ.get("DECK_BATTERY_STATE") or os.path.join(
-    os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "deck", "battery-check.json")
+STATE = os.environ.get("DECK_BATTERY_STATE") or os.path.join(STATE_DIR, "battery-check.json")
 NOTIFY = os.path.expanduser("~/bin/notify")
 REARM = 5                   # percent above a threshold before its warning can show again
 DEFAULTS = {"bus": 1, "address": 0x40, "cells": 2, "capacity_mah": 10000, "shunt_ohms": 0.015,
@@ -33,13 +43,24 @@ DEFAULTS = {"bus": 1, "address": 0x40, "cells": 2, "capacity_mah": 10000, "shunt
             "warn_percent": 20, "critical_percent": 10, "shutdown_cell_volts": 3.2}
 
 I2C_SLAVE = 0x0703
-REG_VSHUNT, REG_VBUS, REG_DIETEMP = 0x04, 0x05, 0x06
+REG_CONFIG, REG_ADC_CONFIG, REG_SHUNT_CAL = 0x00, 0x01, 0x02
+REG_VSHUNT, REG_VBUS, REG_DIETEMP, REG_CHARGE = 0x04, 0x05, 0x06, 0x0A
+RSTACC = 1 << 14            # CONFIG bit: clear the energy and charge counters
+ADC_CONFIG = 0xFB6B         # continuous bus, shunt and temperature, 1052 us each, average 64 samples
+MAX_AMPS = 10.0             # sets the current LSB; a 0.015 ohm shunt reads up to about 10.9 A
+CURRENT_LSB = MAX_AMPS / 2 ** 19
 REG_MANUFACTURER, REG_DEVICE = 0x3E, 0x3F
 VBUS_LSB = 195.3125e-6      # volts per bit
 VSHUNT_LSB = 312.5e-9       # volts per bit with ADCRANGE = 0 (the power-on default)
 TEMP_LSB = 7.8125e-3        # degrees C per bit
 IDLE_AMPS = 0.02            # below this the battery is neither charging nor discharging
-SMOOTH = 0.3                # weight of a new reading (the footer polls every 5 seconds)
+AMPS_TAU = 15               # seconds: smoothing of voltage and current (state, sag correction)
+AVG_TAU = 300               # seconds: current averaged for the time-left estimate
+TRUST_TAU = 1800            # seconds: how slowly the voltage estimate corrects the coulomb count
+SETTLE = 300                # seconds after a fresh start in which the voltage corrects faster
+FULL_CELL_VOLTS = 4.15      # charging, at or above this per cell, with the current tapering: full
+STEP_AMPS = 0.2             # a load change this big between readings is used to measure resistance
+R_WEIGHT = 0.05             # weight of each new resistance measurement
 
 # Resting voltage of one Li-ion / LiPo cell against charge left, in percent.
 CURVE = [(3.27, 0), (3.61, 5), (3.69, 10), (3.71, 15), (3.73, 20), (3.75, 25), (3.77, 30),
@@ -64,32 +85,52 @@ def read_reg(fd, reg, size):
     return int.from_bytes(os.read(fd, size), "big")
 
 
+def write_reg(fd, reg, value):
+    os.write(fd, bytes([reg, value >> 8, value & 0xFF]))
+
+
 def signed(v, bits):
     return v - (1 << bits) if v & (1 << (bits - 1)) else v
 
 
 def sample(c):
-    """Return (volts, amps, die_temp) or None when no INA228 answers."""
+    """Return a dict (volts, amps, temp, charge in coulombs discharged, reset) or None when no
+    INA228 answers. charge is None when there is no hardware count (no shunt, or fake readings);
+    reset is True when the count was just restarted."""
     fake = os.environ.get("DECK_BATTERY_FAKE")
     if fake:
         parts = [float(x) for x in fake.split(",")]
-        return parts[0], (parts[1] if len(parts) > 1 else 0.0), None
+        return {"volts": parts[0], "amps": parts[1] if len(parts) > 1 else 0.0, "temp": None,
+                "charge": None, "reset": False}
     try:
         fd = os.open(f"/dev/i2c-{c['bus']}", os.O_RDWR)
     except OSError:
         return None
     try:
+        # Each read is "set the register pointer, then read", so two readers at once (header,
+        # Settings, timer) can read each other's register. One reader at a time.
+        fcntl.flock(fd, fcntl.LOCK_EX)
         fcntl.ioctl(fd, I2C_SLAVE, c["address"])
         if read_reg(fd, REG_MANUFACTURER, 2) != 0x5449 or read_reg(fd, REG_DEVICE, 2) >> 4 != 0x228:
             return None
+        # The chip forgets its settings when it loses power, so check them on every read.
+        if read_reg(fd, REG_ADC_CONFIG, 2) != ADC_CONFIG:
+            write_reg(fd, REG_ADC_CONFIG, ADC_CONFIG)
+        sign = -1 if c["invert_current"] else 1
         volts = (read_reg(fd, REG_VBUS, 3) >> 4) * VBUS_LSB
-        amps = 0.0
+        amps, charge, reset = 0.0, None, False
         if c["shunt_ohms"]:
-            amps = signed(read_reg(fd, REG_VSHUNT, 3) >> 4, 20) * VSHUNT_LSB / c["shunt_ohms"]
-            if c["invert_current"]:
-                amps = -amps
+            amps = sign * signed(read_reg(fd, REG_VSHUNT, 3) >> 4, 20) * VSHUNT_LSB / c["shunt_ohms"]
+            cal = round(13107.2e6 * CURRENT_LSB * c["shunt_ohms"])
+            if 0 < cal < 0x8000:
+                if read_reg(fd, REG_SHUNT_CAL, 2) != cal:
+                    write_reg(fd, REG_SHUNT_CAL, cal)
+                    write_reg(fd, REG_CONFIG, RSTACC)
+                    write_reg(fd, REG_CONFIG, 0)
+                    reset = True
+                charge = sign * signed(read_reg(fd, REG_CHARGE, 5), 40) * CURRENT_LSB
         temp = signed(read_reg(fd, REG_DIETEMP, 2), 16) * TEMP_LSB
-        return volts, amps, temp
+        return {"volts": volts, "amps": amps, "temp": temp, "charge": charge, "reset": reset}
     except OSError:
         return None
     finally:
@@ -105,25 +146,110 @@ def percent(cell_volts):
     return 100.0
 
 
-def smoothed(volts, amps):
-    """Average with recent readings so the level does not jump with every load spike."""
-    prev = None
-    try:
-        with open(CACHE) as f:
-            prev = json.load(f)
-    except (OSError, ValueError):
-        pass
+def gauge(c, s, prev, now):
+    """One step of the fuel gauge: the new state from the previous one (or None) and a sample."""
+    def voltage_level(volts, amps, ohms):
+        # Under load the voltage sags; add back the drop across the pack to estimate resting voltage.
+        return percent((volts + amps * ohms) / c["cells"])
+
+    def blend(old, new, tau):
+        return old + (1 - math.exp(-dt / tau)) * (new - old)
+
+    def state_of(amps):
+        return "idle" if abs(amps) < IDLE_AMPS else ("discharging" if amps > 0 else "charging")
+
+    coulombs = c["capacity_mah"] * 3.6
+    if not prev or prev.get("ver") != 2:
+        return {"ver": 2, "t": now, "since": now, "v": s["volts"], "a": s["amps"], "avg": s["amps"],
+                "q": s["charge"], "soc": voltage_level(s["volts"], s["amps"], c["internal_ohms"]),
+                "shown": None, "state": state_of(s["amps"]), "rv": s["volts"], "ra": s["amps"],
+                "r": c["internal_ohms"]}
+    dt = max(now - prev["t"], 1e-3)
+    st = dict(prev, t=now, rv=s["volts"], ra=s["amps"])
+    # Learn the pack resistance: a quick load change moves the voltage by the current change times
+    # the resistance (the charge level barely moves in a few seconds).
+    di = s["amps"] - prev["ra"]
+    if abs(di) >= STEP_AMPS and dt < 30:
+        r = (prev["rv"] - s["volts"]) / di
+        if 0.005 < r < 0.5:
+            st["r"] = prev["r"] + R_WEIGHT * (r - prev["r"])
+    st["v"] = blend(prev["v"], s["volts"], AMPS_TAU)
+    st["a"] = blend(prev["a"], s["amps"], AMPS_TAU)
+    # Charge used since the last step: the hardware count, else the current times the time.
+    if s["charge"] is not None and prev["q"] is not None and not s["reset"]:
+        dq = s["charge"] - prev["q"]
+        if abs(dq) > 2 * MAX_AMPS * dt:     # impossible: the count was restarted or misread
+            dq = 0.0
+    elif s["charge"] is None:
+        dq = (prev["a"] + s["amps"]) / 2 * min(dt, 60)
+    else:
+        dq = 0.0
+    st["q"] = s["charge"]
+    st["avg"] = blend(prev["avg"], dq / dt if s["charge"] is not None and dq else st["a"], AVG_TAU)
+    soc = prev["soc"] - dq / coulombs * 100
+    state = state_of(st["a"])
+    if state != "charging":     # a charger holds the voltage up, so it says little about the level
+        trust = TRUST_TAU if now - prev["since"] > SETTLE else 60
+        soc = blend(soc, voltage_level(st["v"], st["a"], st["r"]), trust)
+    if state != prev["state"]:
+        st["avg"] = st["a"]             # time left restarts from the current draw
+    if state == "charging" and st["v"] / c["cells"] >= FULL_CELL_VOLTS \
+            and -st["a"] < coulombs / 3600 * 0.05:      # current below C/20: the charger is done
+        soc = 100.0
+    st["soc"] = min(100.0, max(0.0, soc))
+    shown = round(st["soc"])
+    # After a fresh start the level is still settling (in either direction), so let it move freely.
+    if prev["shown"] is not None and state == prev["state"] and now - prev["since"] > SETTLE:
+        if state == "discharging":
+            shown = min(shown, prev["shown"])
+        elif state == "charging":
+            shown = max(shown, prev["shown"])
+    st["shown"], st["state"] = shown, state
+    return st
+
+
+def load_gauge(c, s):
+    """Run one gauge step against the saved state (locked: the header, Settings and the timer all
+    read the battery). Fake readings use no state unless DECK_BATTERY_CACHE is set."""
+    path = os.environ.get("DECK_BATTERY_CACHE") or (None if os.environ.get("DECK_BATTERY_FAKE") else CACHE)
     now = time.time()
-    if prev and now - prev.get("t", 0) < 60:
-        volts = prev["v"] + SMOOTH * (volts - prev["v"])
-        amps = prev["a"] + SMOOTH * (amps - prev["a"])
+    if not path:
+        return gauge(c, s, None, now)
     try:
-        with open(CACHE + ".tmp", "w") as f:
-            json.dump({"t": now, "v": volts, "a": amps}, f)
-        os.replace(CACHE + ".tmp", CACHE)
+        lock = os.open(path + ".lock", os.O_RDWR | os.O_CREAT, 0o600)
     except OSError:
-        pass
-    return volts, amps
+        return gauge(c, s, None, now)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            with open(path) as f:
+                prev = json.load(f)
+        except (OSError, ValueError):
+            prev = None
+        if prev is None:
+            try:
+                with open(OHMS_FILE) as f:
+                    c = dict(c, internal_ohms=float(f.read()))
+            except (OSError, ValueError):
+                pass
+        st = gauge(c, s, prev, now)
+        if abs(st["r"] - st.get("r_saved", 0)) > 0.002:
+            try:
+                os.makedirs(STATE_DIR, exist_ok=True)
+                with open(OHMS_FILE, "w") as f:
+                    f.write(f"{st['r']:.4f}\n")
+                st["r_saved"] = st["r"]
+            except OSError:
+                pass
+        try:
+            with open(path + ".tmp", "w") as f:
+                json.dump(st, f)
+            os.replace(path + ".tmp", path)
+        except OSError:
+            pass
+        return st
+    finally:
+        os.close(lock)
 
 
 def status():
@@ -131,20 +257,18 @@ def status():
     s = sample(c)
     if s is None:
         return None
-    raw_v, raw_a, temp = s
-    volts, amps = (raw_v, raw_a) if os.environ.get("DECK_BATTERY_FAKE") else smoothed(raw_v, raw_a)
-    # Under load the voltage sags; add back the drop across the pack to estimate resting voltage.
-    rest = volts + amps * c["internal_ohms"]
-    pct = round(percent(rest / c["cells"]))
-    state = "idle" if abs(amps) < IDLE_AMPS else ("discharging" if amps > 0 else "charging")
-    hours = None
-    if state == "discharging":
-        hours = c["capacity_mah"] / 1000 * pct / 100 / amps
-    elif state == "charging":
-        hours = c["capacity_mah"] / 1000 * (100 - pct) / 100 / -amps
-    return {"percent": pct, "state": state, "volts": round(volts, 3), "amps": round(amps, 3),
-            "watts": round(volts * amps, 2), "hours": round(hours, 2) if hours is not None else None,
-            "die_temp": round(temp, 1) if temp is not None else None, "cells": c["cells"]}
+    g = load_gauge(c, s)
+    pct, state, amps = g["shown"] if g["shown"] is not None else round(g["soc"]), g["state"], g["a"]
+    avg, hours = g["avg"], None
+    ah = c["capacity_mah"] / 1000
+    if state == "discharging" and avg > IDLE_AMPS:
+        hours = ah * g["soc"] / 100 / avg
+    elif state == "charging" and avg < -IDLE_AMPS:
+        hours = ah * (100 - g["soc"]) / 100 / -avg
+    return {"percent": pct, "state": state, "volts": round(g["v"], 3), "amps": round(amps, 3),
+            "watts": round(g["v"] * amps, 2), "hours": round(hours, 2) if hours is not None else None,
+            "die_temp": round(s["temp"], 1) if s["temp"] is not None else None, "cells": c["cells"],
+            "level": round(g["soc"], 2)}
 
 
 def hm(hours):
