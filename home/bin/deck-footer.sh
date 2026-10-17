@@ -74,20 +74,4 @@ if show weather; then
   seg "$wcol" "$weather"
 fi
 
-# Battery: INA228 on I2C, via deck-battery. Nothing is shown until the sensor answers.
-if show bat; then
-  set -- $("$HOME/bin/deck-battery" --short 2>/dev/null)
-  if [ -n "$1" ]; then
-    pct=$1; state=$2; left=$3
-    if [ "$state" = charging ]; then bcol="#8be9fd"; icon=$(printf '\357\203\247')      # bolt U+F0E7
-    elif [ "$pct" -ge 50 ]; then bcol="#50fa7b"
-    elif [ "$pct" -ge 20 ]; then bcol="#f1fa8c"
-    else bcol="#ff5555"; fi
-    text="BAT $pct%"
-    [ -n "$icon" ] && text="$text $icon"
-    [ "$state" = discharging ] && [ "$left" != "-" ] && text="$text $left"
-    seg "$bcol" "$text"
-  fi
-fi
-
 printf '%s' "$out"

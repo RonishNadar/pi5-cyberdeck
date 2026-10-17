@@ -165,7 +165,8 @@ are editing the live system.
 - Ask before rebooting, restarting the display, or anything that could drop the network.
 
 ## Open items
-- Battery: wired and read by the INA228, all software done: footer block (`bat`, via `deck-battery --short`), and
+- Battery: wired and read by the INA228, all software done: header icon (`deck-status.sh`, via `deck-battery --short`;
+  the footer `bat` block was removed on 2026-10-17), and
   `deck-battery --check` from `deck-watch.sh` (warnings at 20%/10%, poweroff after two readings at
   or below 3.2 V per cell; state in `~/.local/state/deck/battery-check.json`; test with
   `DECK_BATTERY_FAKE`, `DECK_BATTERY_STATE` (scratch file) and `DECK_BATTERY_DRYRUN=1`).
