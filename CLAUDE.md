@@ -115,7 +115,7 @@ are editing the live system.
 - `deck-brightness`: backlight via the Waveshare PWM mod on GPIO 18 = RP1 PWM0 (`pwm@98000`, its
   pwmchip number varies; pwmchip0 is PWM1, the fan) channel 2. Root `deck-backlight.service` runs
   `/usr/local/bin/deck-backlight-setup`: export, 1 kHz, polarity **inversed** (the panel input is active
-  low), restore `~/.local/state/deck/brightness`, chgrp video. Min 5%. Tests: `DECK_BRIGHTNESS_PWM`
+  low), restore `~/.local/state/deck/brightness`, chgrp video. Min 1%. Tests: `DECK_BRIGHTNESS_PWM`
   (dir with period/duty_cycle) and `DECK_BRIGHTNESS_STATE`. Settings > Display has the levels.
 - `deck-battery` (INA228 over raw `/dev/i2c-1`, stdlib only; prints nothing without the sensor),
   `lanscan.py` (nmap TUI), `notify` (tmux banners + sounds, honors `~/.config/deck/flags/*`),

@@ -619,7 +619,7 @@ The panel has no brightness control of its own. With Waveshare's PWM backlight m
 
 - **Keys:** F11 dimmer, F12 brighter (also `XF86MonBrightnessDown` / `Up`), in 10% steps with a short banner.
 - **Settings > Display:** Brighter, Dimmer and fixed levels from 10% to 100%.
-- **Command:** `deck-brightness` prints the level; `deck-brightness 40`, `+10`, `-10` set it. The lowest level is 5%, so the screen never goes fully dark. The level is saved in `~/.local/state/deck/brightness`.
+- **Command:** `deck-brightness` prints the level; `deck-brightness 40`, `+10`, `-10` set it. The lowest level is 1%, so the screen never goes fully dark. The level is saved in `~/.local/state/deck/brightness`.
 - **Boot:** `deck-backlight.service` runs `/usr/local/bin/deck-backlight-setup` early. It exports the PWM channel at 1 kHz, restores the saved level and lets the `video` group change it, so no sudo is needed afterwards. The panel's input is active low (a high pad dims it), so the channel runs with inversed polarity. Before the service runs the pin is low, which means full brightness for the boot splash.
 - **Setup:** `config.txt` needs the overlay:
 

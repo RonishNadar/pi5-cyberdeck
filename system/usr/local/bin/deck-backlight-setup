@@ -22,7 +22,7 @@ p=$chip/pwm2
 for i in $(seq 50); do [ -e "$p/duty_cycle" ] && break; sleep 0.1; done
 
 level=$(head -c 4 "$SAVED" 2>/dev/null | tr -cd 0-9)
-{ [ -n "$level" ] && [ "$level" -ge 5 ] && [ "$level" -le 100 ]; } || level=100
+{ [ -n "$level" ] && [ "$level" -ge 1 ] && [ "$level" -le 100 ]; } || level=100
 
 echo 0 > "$p/enable"                # polarity can only change while the channel is off
 echo inversed > "$p/polarity"       # the panel dims while the pad is high; a low pin (before boot) is full light

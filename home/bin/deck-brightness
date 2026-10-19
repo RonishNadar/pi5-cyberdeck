@@ -8,7 +8,7 @@
 # (/usr/local/bin/deck-backlight-setup) restores it at boot and makes the PWM files writable
 # for the video group. Prints nothing and exits 1 when the PWM channel is not set up.
 # Tests: DECK_BRIGHTNESS_PWM=<dir with period, duty_cycle> DECK_BRIGHTNESS_STATE=<scratch file>
-MIN=5; STEP=10
+MIN=1; STEP=10
 STATE=${DECK_BRIGHTNESS_STATE:-$HOME/.local/state/deck/brightness}
 PWM=$DECK_BRIGHTNESS_PWM
 if [ -z "$PWM" ]; then
