@@ -36,11 +36,11 @@ chmod +x ~/bin/* 2>/dev/null
 say "System files"
 if [ -d "$REPO/system" ]; then
   sudo cp -a "$REPO/system/." /
-  sudo chown -R root:root /usr/local/bin/touch-mouse.py /usr/local/bin/bt-set-addr.sh \
-    /etc/systemd/system/touch-mouse.service /etc/systemd/system/bt-set-addr.service \
+  sudo chown -R root:root /usr/local/bin/touch-mouse.py /usr/local/bin/bt-set-addr.sh /usr/local/bin/deck-backlight-setup \
+    /etc/systemd/system/touch-mouse.service /etc/systemd/system/bt-set-addr.service /etc/systemd/system/deck-backlight.service \
     /etc/systemd/system/getty@tty1.service.d /etc/polkit-1/rules.d /etc/udev/rules.d/70-deck-consumer-keys.rules /usr/share/plymouth/themes/deck \
     /lib/firmware/edid 2>/dev/null
-  sudo chmod +x /usr/local/bin/touch-mouse.py /usr/local/bin/bt-set-addr.sh 2>/dev/null
+  sudo chmod +x /usr/local/bin/touch-mouse.py /usr/local/bin/bt-set-addr.sh /usr/local/bin/deck-backlight-setup 2>/dev/null
 fi
 
 say "Load deck.bashrc from ~/.bashrc"
@@ -58,7 +58,7 @@ say "Groups, services and timers"
 sudo usermod -aG video,render,input,bluetooth,wireshark,dialout "$(id -un)"
 sudo loginctl enable-linger "$(id -un)"
 sudo systemctl daemon-reload
-sudo systemctl enable --now touch-mouse.service bt-set-addr.service 2>/dev/null
+sudo systemctl enable --now touch-mouse.service bt-set-addr.service deck-backlight.service 2>/dev/null
 sudo systemctl enable --now bluetooth NetworkManager avahi-daemon 2>/dev/null
 sudo systemctl restart polkit
 sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=input --action=change

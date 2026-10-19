@@ -34,4 +34,8 @@ bindsym --no-repeat XF86AudioPause exec ~/bin/deck-media.sh play
 bindsym --no-repeat F8 exec ~/bin/deck-media.sh next
 bindsym --no-repeat XF86AudioNext exec ~/bin/deck-media.sh next
 bindsym --no-repeat XF86Back exec ~/bin/deck-close.sh
+bindsym F11 exec ~/bin/deck-brightness down
+bindsym XF86MonBrightnessDown exec ~/bin/deck-brightness down
+bindsym F12 exec ~/bin/deck-brightness up
+bindsym XF86MonBrightnessUp exec ~/bin/deck-brightness up
 # <<< deck media keys

@@ -92,8 +92,10 @@ copy "$H/Pictures/ronad_logo.png"                   assets/logo.png
 say "System files (needs sudo)"
 scopy /usr/local/bin/touch-mouse.py                          system/usr/local/bin/touch-mouse.py
 scopy /usr/local/bin/bt-set-addr.sh                          system/usr/local/bin/bt-set-addr.sh
+scopy /usr/local/bin/deck-backlight-setup                   system/usr/local/bin/deck-backlight-setup
 scopy /etc/systemd/system/touch-mouse.service                system/etc/systemd/system/touch-mouse.service
 scopy /etc/systemd/system/bt-set-addr.service                system/etc/systemd/system/bt-set-addr.service
+scopy /etc/systemd/system/deck-backlight.service             system/etc/systemd/system/deck-backlight.service
 scopy /etc/bluetooth/main.conf                             system/etc/bluetooth/main.conf
 scopy /etc/systemd/system/getty@tty1.service.d/autologin.conf system/etc/systemd/system/getty@tty1.service.d/autologin.conf
 scopy /etc/systemd/system/plymouth-quit.service.d/retain-splash.conf system/etc/systemd/system/plymouth-quit.service.d/retain-splash.conf

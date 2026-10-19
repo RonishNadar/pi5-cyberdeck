@@ -30,8 +30,8 @@ are editing the live system.
   the Pi uses DVI mode and there is no HDMI audio (error 524). The files live in `/lib/firmware/edid/`.
 - The initramfs is **dracut** (not initramfs-tools): `/etc/dracut.conf.d/edid.conf` includes the
   EDID. Rebuild with `sudo update-initramfs -u` (Ubuntu wraps dracut).
-- `/boot/firmware/config.txt`: `disable_splash=1`, `camera_auto_detect=0`, and `dtoverlay=imx708`
-  under `[all]`. There may be a temporary `arm_freq=1800` (remove it after the power upgrade).
+- `/boot/firmware/config.txt`: `disable_splash=1`, `camera_auto_detect=0`, `dtoverlay=imx708` and
+  `dtoverlay=pwm,pin=18,func=2` (backlight) under `[all]`. There may be a temporary `arm_freq=1800` (remove it after the power upgrade).
 - Boot splash: a Plymouth script theme in `/usr/share/plymouth/themes/deck`, selected with
   `update-alternatives` (`plymouth-set-default-theme` does not exist here).
 - Second panel: 7" HDMI Display-C (1024x600, own EDID with audio, model `MPI7002`, USB touch
@@ -45,6 +45,7 @@ are editing the live system.
   gaps, `xwayland disable`, `hide_cursor 500`, cursor theme `DeckCircle`, `exec ~/bin/deck-session.sh`.
   It also holds the **media keys block** (`# >>> deck media keys` ... `# <<< deck media keys`):
   F2 to F8 and the XF86 media keys call `~/bin/deck-media.sh`.
+  F11/F12 and XF86MonBrightness call `~/bin/deck-brightness down/up`.
   `XF86Back` calls `~/bin/deck-close.sh`: tmux popup confirm on the foot client, then SIGTERM to the
   tab's foreground job and `kill-window` after 3 s. Terminal tabs (no start command or a bare shell)
   and main/apps/settings are skipped. Camera gets SIGUSR1 and confirms in its own window.
@@ -111,6 +112,11 @@ are editing the live system.
   `pause_others()` also pauses spotifyd). Unix socket paths max 108 bytes, so tests must use a short
   path like `/run/user/1000/deck-X-test.sock`, never the scratchpad.
 - Textual key names: `[` is `left_square_bracket`, `]` `right_square_bracket`, `.` `full_stop`.
+- `deck-brightness`: backlight via the Waveshare PWM mod on GPIO 18 = RP1 PWM0 (`pwm@98000`, its
+  pwmchip number varies; pwmchip0 is PWM1, the fan) channel 2. Root `deck-backlight.service` runs
+  `/usr/local/bin/deck-backlight-setup`: export, 1 kHz, polarity **inversed** (the panel input is active
+  low), restore `~/.local/state/deck/brightness`, chgrp video. Min 5%. Tests: `DECK_BRIGHTNESS_PWM`
+  (dir with period/duty_cycle) and `DECK_BRIGHTNESS_STATE`. Settings > Display has the levels.
 - `deck-battery` (INA228 over raw `/dev/i2c-1`, stdlib only; prints nothing without the sensor),
   `lanscan.py` (nmap TUI), `notify` (tmux banners + sounds, honors `~/.config/deck/flags/*`),
   `deck-watch.sh` (user timer: temp, disk, undervoltage, low battery), `deck-footer.sh`, `deck-status.sh`,
@@ -182,6 +188,4 @@ are editing the live system.
   `arm_freq=1800`, restore the camera preview to 1536x864 at 30 fps.
 - Power button: momentary switch on the Pi 5 J2 (PWR_BTN) header, logind `HandlePowerKey=poweroff`,
   EEPROM `POWER_OFF_ON_HALT=1`, plus a hidden latching master switch in the battery line.
-- Display brightness: no software control. It needs Waveshare's PWM hardware mod (wiki FAQ), then a
-  Pi PWM pin.
 - Deferred by the owner: uv/new-app template, Podman, local LLM, Arduino/PlatformIO.

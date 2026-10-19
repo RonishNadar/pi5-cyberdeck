@@ -79,6 +79,8 @@ Ubuntu Server 26.04, sway in kiosk mode, one fullscreen terminal, tmux, Dracula 
 - The panel's **TOUCH** micro-USB goes to a Pi USB port. This both powers the panel (about 440 mA) and carries touch.
 - The "with case" kit includes a rigid HDMI adapter sized for the Pi 4. On the Pi 5 it can fit loosely; if the display isn't detected, reseat it or use a normal micro-HDMI cable.
 
+- **Brightness (optional):** after Waveshare's PWM backlight mod (wiki FAQ), wire the panel's PWM pad to **GPIO 18** (pin 12). See [Brightness](#brightness).
+
 **Panel facts** (from the Waveshare wiki): 1440x2560 portrait IPS, 50 Hz at a 206 MHz pixel clock, 5 V 440 mA, 260 cd/m². The wiki's `hdmi_timings` setup is for the Pi 4's legacy firmware; the Pi 5 ignores it, which is why this repo uses a custom EDID instead.
 
 ## Software stack
@@ -120,6 +122,7 @@ pi5-cyberdeck/
 │       ├── deck_prefs.py            date/time, notifications, footer, theme menus
 │       ├── deck-footer.sh           footer blocks
 │       ├── deck-battery             battery level from the INA228
+│       ├── deck-brightness          display backlight level (PWM)
 │       ├── deck-watch.sh            temperature, disk and power warnings
 │       ├── notify                   header notifications
 │       ├── camera.py                camera app
@@ -582,7 +585,7 @@ After scrolling by line, `Right` and `Left` snap back to the top of the next or 
 | `v` | view: Single (one centered column) or Fit (full screen width) |
 | `f` | focus: hide the header and footer |
 | `+` `-` | line width (switches back to Single view) |
-| `a` | theme: Dracula, Night (dim gray on black, since the panel has no brightness control), Paper |
+| `a` | theme: Dracula, Night (dim gray on black), Paper |
 | `J` / `s` | justify on or off / spaced or indented paragraphs |
 | `?` | key help |
 | `Esc` `q` | back to the library |
@@ -610,9 +613,25 @@ Reading positions, bookmarks and settings are saved in `~/.config/deck/reader.js
 - **Preview without the sensor:** `DECK_BATTERY_FAKE="7.70,1.2" deck-battery` (volts, amps; positive amps = discharging).
 - **Access:** `/dev/i2c-1` belongs to the `dialout` group. `install-files.sh` adds you to it (it takes effect after the next login), since the seat permission alone does not cover sessions started over SSH.
 
+## Brightness
+
+The panel has no brightness control of its own. With Waveshare's PWM backlight mod (see the FAQ on the [wiki](https://www.waveshare.com/wiki/5.5inch_1440x2560_LCD)) its PWM pad takes a signal from **GPIO 18**, which is RP1 PWM0 channel 2 on the Pi 5.
+
+- **Keys:** F11 dimmer, F12 brighter (also `XF86MonBrightnessDown` / `Up`), in 10% steps with a short banner.
+- **Settings > Display:** Brighter, Dimmer and fixed levels from 10% to 100%.
+- **Command:** `deck-brightness` prints the level; `deck-brightness 40`, `+10`, `-10` set it. The lowest level is 5%, so the screen never goes fully dark. The level is saved in `~/.local/state/deck/brightness`.
+- **Boot:** `deck-backlight.service` runs `/usr/local/bin/deck-backlight-setup` early. It exports the PWM channel at 1 kHz, restores the saved level and lets the `video` group change it, so no sudo is needed afterwards. The panel's input is active low (a high pad dims it), so the channel runs with inversed polarity. Before the service runs the pin is low, which means full brightness for the boot splash.
+- **Setup:** `config.txt` needs the overlay:
+
+```bash
+grep -q '^dtoverlay=pwm,pin=18,func=2' /boot/firmware/config.txt || printf '\n[all]\ndtoverlay=pwm,pin=18,func=2\n' | sudo tee -a /boot/firmware/config.txt
+```
+
+  `install-files.sh` installs and enables the service. To try it without a reboot: `sudo dtoverlay pwm pin=18 func=2 && sudo systemctl restart deck-backlight`.
+
 ## Keyboard shortcuts
 
-These work everywhere on the deck. Sway handles F2 to F8 and Back (see the `deck media keys` block in `home/.config/sway/config` and `home/bin/deck-media.sh`), and F1 is set in `.tmux.conf`.
+These work everywhere on the deck. Sway handles F2 to F8, F11, F12 and Back (see the `deck media keys` block in `home/.config/sway/config` and `home/bin/deck-media.sh`), and F1 is set in `.tmux.conf`.
 
 | Key | Action |
 |---|---|
@@ -621,6 +640,7 @@ These work everywhere on the deck. Sway handles F2 to F8 and Back (see the `deck
 | F3 | mute |
 | F4 / F5 | system volume down / up |
 | F6 / F7 / F8 | previous / play-pause / next (spotifyd or any MPRIS player) |
+| F11 / F12 | display dimmer / brighter (see [Brightness](#brightness)) |
 | Back (the keyboard's `XF86Back` key) | close the current app after a confirm (`y`/Enter close, `n`/Esc cancel). `main`, `apps`, `settings` and terminal tabs are never closed. The app gets SIGTERM first (Notes saves the open note, Camera stops recording), and the tab is force-closed after 3 s. See `home/bin/deck-close.sh`. It needs the udev rule `70-deck-consumer-keys.rules` (below the table) |
 
 Both the plain F keys and the media key codes (`XF86AudioPlay` and so on) are bound, so the keys work with Fn lock on or off.

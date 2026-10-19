@@ -72,3 +72,6 @@ dtoverlay=imx708
 
 [all]
 arm_freq=1800
+
+[all]
+dtoverlay=pwm,pin=18,func=2

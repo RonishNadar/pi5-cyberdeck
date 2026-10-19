@@ -31,6 +31,7 @@ ACCENT = current_accent()
 
 TEXT_SIZES = [("Small", 22), ("Medium", 28), ("Large", 34), ("Extra large", 40)]
 CURSOR_HIDE = [("0.5 seconds", 500), ("1 second", 1000), ("3 seconds", 3000), ("Never", 0)]
+BRIGHTNESS = [10, 25, 50, 75, 100]
 # Battery choices; the defaults match DEFAULTS in ~/bin/deck-battery.
 BATTERY_DEFAULTS = {"cells": 2, "warn_percent": 20, "critical_percent": 10, "shutdown_cell_volts": 3.2}
 BATTERY_CHOICES = {
@@ -113,6 +114,12 @@ def text_size() -> int:
 def cursor_hide() -> int:
     m = re.search(r"hide_cursor (\d+)", open(SWAY_CFG).read()) if os.path.exists(SWAY_CFG) else None
     return int(m.group(1)) if m else 0
+
+
+def brightness():
+    """Backlight level in percent from deck-brightness, or None without the PWM setup."""
+    v = sh("deck-brightness")
+    return int(v) if v.isdigit() else None
 
 
 def battery():
@@ -304,6 +311,7 @@ class Settings(PrefsMixin, NetMixin, App):
         pct, muted = volume()
         vol = "no audio" if pct is None else (f"muted ({pct}%)" if muted else f"{pct}%")
         hide = cursor_hide()
+        light = brightness()
         bat = battery()
         bat_item = []
         if bat:
@@ -317,6 +325,7 @@ class Settings(PrefsMixin, NetMixin, App):
             item("sound", "\uf028", "Sound", vol, YELLOW),
             *bat_item,
             item("display", "\uf108", "Display",
+                 ("" if light is None else f"brightness {light}%, ") +
                  f"text {text_size()}, cursor hides {'never' if hide == 0 else f'after {hide} ms'}", CYAN),
             *self.prefs_main_items(),
             item("about", "\uf05a", "About this deck", sh("hostname"), GREEN),
@@ -377,8 +386,16 @@ class Settings(PrefsMixin, NetMixin, App):
 
     # display
     def display_items(self):
-        size, hide = text_size(), cursor_hide()
-        opts = [heading("Text size (restarts the display)")]
+        size, hide, light = text_size(), cursor_hide(), brightness()
+        opts = []
+        if light is not None:
+            opts += [heading("Brightness (F11 / F12)"),
+                     item("light:up", "", "Brighter", f"{light}%", YELLOW),
+                     item("light:down", "", "Dimmer", "", YELLOW)]
+            opts += [item(f"light:{v}", "", f"{v}%", DOT + "current" if v == light else "", YELLOW)
+                     for v in BRIGHTNESS]
+            opts += [heading("")]
+        opts += [heading("Text size (restarts the display)")]
         opts += [item(f"size:{v}", "\uf031", label, DOT + "current" if v == size else "", CYAN)
                  for label, v in TEXT_SIZES]
         opts += [heading(""), heading("Cursor hides after")]
@@ -387,7 +404,10 @@ class Settings(PrefsMixin, NetMixin, App):
         return opts
 
     def display_pick(self, menu, oid):
-        if oid.startswith("size:"):
+        if oid.startswith("light:"):
+            v = oid[6:]
+            subprocess.run(["deck-brightness", {"up": "+10", "down": "-10"}.get(v, v)], capture_output=True)
+        elif oid.startswith("size:"):
             v = int(oid[5:])
             if v == text_size():
                 return
