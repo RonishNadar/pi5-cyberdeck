@@ -1,13 +1,16 @@
 #!/home/admin/.venvs/deck/bin/python
-"""Deck YouTube: search, subscriptions, history, playlists and a listening queue, played with mpv.
-No Google account needed.
+"""Deck YouTube: home, subscriptions, search, history, library and a listening queue, played with mpv.
+Works without a Google account. Signed in (YouTube Data API, with a code entered on another device),
+Subscriptions and Library come from your YouTube account and Home shows what is popular in your region.
 
 Enter/Right watch (mpv full screen, q there returns here), a listen now, e add to the queue,
 l add to a playlist, d/D download video/audio, s subscribe, c channel, I import subscriptions,
-Space pause, , . seek, - + volume, n p next/previous, x stop, / search,
-1-5 or Tab/Shift+Tab switch views, Left/Esc back.
+L sign in or out, Space pause, , . seek, - + volume, n p next/previous, x stop, / search,
+1-6 or Tab/Shift+Tab switch views, Left/Esc back.
 
   tube.py --import subscriptions.csv     import a Google Takeout subscriptions file
+  tube.py --login                        sign in to YouTube (needs a Google Cloud OAuth client, see README)
+  tube.py --logout                       forget the login
 """
 import csv
 import glob
@@ -20,6 +23,8 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
@@ -42,6 +47,8 @@ HOME = os.path.expanduser("~")
 VENV_BIN = os.path.dirname(os.path.abspath(sys.executable))
 RUN = f"/run/user/{os.getuid()}"
 CONFIG = f"{HOME}/.config/deck/youtube.json"
+API_CFG = f"{HOME}/.config/deck/youtube-api.json"         # OAuth client: never collected
+TOKEN = f"{HOME}/.config/deck/youtube-token.json"         # Google login: secret, never collected
 HISTORY = f"{HOME}/.local/share/deck/youtube-history.json"
 SOCK = f"{RUN}/deck-tube.sock"
 QUEUE_META = f"{RUN}/deck-tube-queue.json"     # titles and channels of queued videos
@@ -57,8 +64,8 @@ except Exception:
     ACCENT = PURPLE
 
 I_YT, I_PLAY, I_PAUSE, I_LIST, I_DL = "", "", "", "", ""
-TABS = [("feed", "Subscriptions"), ("search", "Search"), ("history", "History"),
-        ("playlists", "Playlists"), ("queue", "Queue")]
+TABS = [("home", "Home"), ("feed", "Subscriptions"), ("search", "Search"), ("history", "History"),
+        ("playlists", "Library"), ("queue", "Queue")]
 
 
 # ---------- storage ----------
@@ -78,7 +85,7 @@ def save_json(path, data):
 
 
 def load_config():
-    cfg = {"subs": [], "quality": 720, "hide_shorts": False, "playlists": {}}
+    cfg = {"subs": [], "quality": 720, "hide_shorts": False, "playlists": {}, "region": ""}
     cfg.update(load_json(CONFIG, {}))
     return cfg
 
@@ -118,9 +125,23 @@ def fmt_age(ts):
 
 
 # ---------- YouTube data ----------
+class QuietLog:
+    """yt-dlp prints errors to stderr even when quiet, which garbles the screen. They come back as exceptions."""
+    def debug(self, msg): pass
+    info = warning = error = debug
+
+
+def err_text(ex, n=120):
+    """An error without yt-dlp's colors and its 'ERROR: [youtube:tab] id:' prefix."""
+    msg = re.sub(r"\x1b\[[0-9;]*m", "", str(ex))
+    msg = re.sub(r"^ERROR:\s*(\[[^\]]+\]\s*)?([\w-]+:\s)?", "", msg)
+    return msg[:n]
+
+
 def search(q, n=30):
     from yt_dlp import YoutubeDL     # slow import, so only when needed
-    opts = {"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "skip_download": True}
+    opts = {"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "skip_download": True,
+            "logger": QuietLog()}
     with YoutubeDL(opts) as y:
         info = y.extract_info(f"ytsearch{n}:{q}", download=False)
     out = []
@@ -133,6 +154,181 @@ def search(q, n=30):
                     "views": e.get("view_count"), "short": "/shorts/" in url,
                     "live": e.get("live_status") == "is_live"})
     return out
+
+
+# ---------- YouTube account (Data API v3, signed in with a code like a TV app) ----------
+# Google's API has no home recommendations, watch history or Watch later, so those stay out.
+SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
+TOKEN_LOCK = threading.Lock()
+
+
+class ApiError(Exception):
+    def __init__(self, msg, code=None):
+        super().__init__(msg)
+        self.code = code
+
+
+def http_json(url, form=None, token=None):
+    data = urllib.parse.urlencode(form).encode() if form is not None else None
+    req = urllib.request.Request(url, data=data, headers={"Authorization": f"Bearer {token}"} if token else {})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as ex:
+        try:
+            body = json.load(ex)
+        except ValueError:
+            body = {}
+        err = body.get("error")
+        if isinstance(err, dict):        # API errors are an object, OAuth errors a plain code
+            raise ApiError(re.sub(r"<[^>]+>", "", err.get("message") or str(ex)), err.get("status")) from None
+        raise ApiError(body.get("error_description") or err or str(ex), err) from None
+
+
+def save_secret(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd = os.open(path + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f, indent=1)
+    os.replace(path + ".tmp", path)
+
+
+def signed_in():
+    return os.path.exists(TOKEN)
+
+
+def device_start(client):
+    """Ask Google for a sign-in code. Returns user_code, verification_url, device_code, interval, expires_in."""
+    return http_json("https://oauth2.googleapis.com/device/code", {"client_id": client["client_id"], "scope": SCOPE})
+
+
+def device_wait(client, start, cancelled):
+    """Wait until the code is entered on another device and save the token. Returns an error message or None."""
+    interval = start.get("interval", 5)
+    deadline = time.time() + start.get("expires_in", 1800)
+    while time.time() < deadline:
+        for _ in range(interval * 4):
+            if cancelled():
+                return None
+            time.sleep(0.25)
+        try:
+            tok = http_json("https://oauth2.googleapis.com/token", {
+                "client_id": client["client_id"], "client_secret": client["client_secret"],
+                "device_code": start["device_code"], "grant_type": "urn:ietf:params:oauth:grant-type:device_code"})
+        except ApiError as ex:
+            if ex.code == "authorization_pending":
+                continue
+            if ex.code == "slow_down":
+                interval += 5
+                continue
+            return "Sign-in was declined." if ex.code == "access_denied" else str(ex)
+        except OSError as ex:
+            return f"No connection: {ex}"
+        tok["expires_at"] = time.time() + tok.get("expires_in", 3600)
+        save_secret(TOKEN, tok)
+        return None
+    return "The code expired. Press L for a new one."
+
+
+def access_token():
+    with TOKEN_LOCK:
+        tok = load_json(TOKEN, None)
+        if not tok:
+            raise ApiError("Not signed in. Press L.")
+        if tok.get("expires_at", 0) - 60 > time.time():
+            return tok["access_token"]
+        client = load_json(API_CFG, {})
+        try:
+            new = http_json("https://oauth2.googleapis.com/token", {
+                "client_id": client.get("client_id", ""), "client_secret": client.get("client_secret", ""),
+                "refresh_token": tok.get("refresh_token", ""), "grant_type": "refresh_token"})
+        except ApiError as ex:
+            raise ApiError(f"The login expired or was removed ({ex}). Press L to sign in again.") from None
+        new.setdefault("refresh_token", tok.get("refresh_token"))
+        new["expires_at"] = time.time() + new.get("expires_in", 3600)
+        save_secret(TOKEN, new)
+        return new["access_token"]
+
+
+def api_pages(path, limit, **params):
+    """GET a YouTube Data API list, following pages until limit items."""
+    items, page = [], None
+    while len(items) < limit:
+        q = dict(params, maxResults=50, **({"pageToken": page} if page else {}))
+        try:
+            r = http_json(f"https://www.googleapis.com/youtube/v3/{path}?" + urllib.parse.urlencode(q),
+                          token=access_token())
+        except ApiError as ex:
+            if ex.code == "UNAUTHENTICATED":
+                raise ApiError("YouTube rejected the login. Press L to sign in again.") from None
+            raise
+        items += r.get("items", [])
+        page = r.get("nextPageToken")
+        if not page:
+            break
+    return items[:limit]
+
+
+def iso_duration(s):
+    m = re.fullmatch(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?", s or "")
+    if not m:
+        return None
+    d, h, mi, sec = (int(x or 0) for x in m.groups())
+    return d * 86400 + h * 3600 + mi * 60 + sec
+
+
+def iso_time(s):
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+    except (AttributeError, ValueError):
+        return None
+
+
+def api_video(v):
+    sn, st = v.get("snippet", {}), v.get("statistics", {})
+    return {"id": v["id"], "title": sn.get("title") or "?", "channel": sn.get("channelTitle") or "",
+            "channel_id": sn.get("channelId") or "", "duration": iso_duration(v.get("contentDetails", {}).get("duration")),
+            "views": int(st["viewCount"]) if st.get("viewCount") else None, "published": iso_time(sn.get("publishedAt")),
+            "short": False, "live": sn.get("liveBroadcastContent") == "live"}
+
+
+VIDEO_PARTS = "snippet,contentDetails,statistics"
+
+
+def api_videos(ids):
+    """Full details (duration, views) for video ids, in the same order. Private and deleted ones drop out."""
+    found = {}
+    for i in range(0, len(ids), 50):
+        for v in api_pages("videos", 50, part=VIDEO_PARTS, id=",".join(ids[i:i + 50])):
+            found[v["id"]] = api_video(v)
+    return [found[i] for i in ids if i in found]
+
+
+def my_subscriptions():
+    items = api_pages("subscriptions", 2000, part="snippet", mine="true", order="alphabetical")
+    return [{"id": s["snippet"]["resourceId"]["channelId"], "name": s["snippet"]["title"]} for s in items]
+
+
+def my_playlists():
+    items = api_pages("playlists", 500, part="snippet,contentDetails", mine="true")
+    return [{"_pl": p["snippet"]["title"], "_api": p["id"], "count": p.get("contentDetails", {}).get("itemCount")}
+            for p in items]
+
+
+def playlist_videos(pid, limit=500):
+    if pid == "liked":
+        return [api_video(v) for v in api_pages("videos", limit, part=VIDEO_PARTS, myRating="like")]
+    items = api_pages("playlistItems", limit, part="contentDetails", playlistId=pid)
+    return api_videos([i["contentDetails"]["videoId"] for i in items])
+
+
+def region(cfg):
+    m = re.match(r"[a-z]{2}_([A-Z]{2})", os.environ.get("LANG", ""))
+    return (cfg.get("region") or (m.group(1) if m else "US")).upper()
+
+
+def popular(cfg):
+    return [api_video(v) for v in api_pages("videos", 50, part=VIDEO_PARTS, chart="mostPopular", regionCode=region(cfg))]
 
 
 NS = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015",
@@ -207,6 +403,18 @@ def ytdl_format(quality, audio_only=False):
 
 def url_of(v):
     return f"https://www.youtube.com/watch?v={v['id']}"
+
+
+def sign_out():
+    """Forget the login, and tell Google to cancel it (best effort)."""
+    tok = load_json(TOKEN, {})
+    if tok.get("refresh_token"):
+        try:
+            http_json("https://oauth2.googleapis.com/revoke", {"token": tok["refresh_token"]})
+        except Exception:
+            pass
+    if os.path.exists(TOKEN):
+        os.remove(TOKEN)
 
 
 def video_cmd(v, quality):
@@ -341,6 +549,37 @@ class Confirm(ModalScreen):
         self.dismiss(False)
 
 
+class DeviceLogin(ModalScreen):
+    """Shows the sign-in code and waits for it to be entered. Returns None (cancelled), "ok" or an error."""
+    BINDINGS = [Binding("escape,left", "cancel", show=False)]
+    DEFAULT_CSS = MODAL.format(name="DeviceLogin", accent=ACCENT)
+
+    def __init__(self, client, start):
+        super().__init__()
+        self.client, self.start, self.cancelled = client, start, False
+
+    def compose(self):
+        with Vertical():
+            yield Static(Text.assemble(
+                ("Sign in to YouTube\n\n", f"bold {ACCENT}"), ("On your phone or computer, open\n\n   ", FG),
+                (self.start.get("verification_url", "https://www.google.com/device"), f"bold {CYAN}"),
+                ("\n\nand enter this code:\n\n   ", FG), (self.start["user_code"], f"bold {YELLOW}"),
+                ("\n\nWaiting for you there. Esc cancels.", GRAY)))
+
+    def on_mount(self):
+        self.wait()
+
+    @work(thread=True)
+    def wait(self):
+        err = device_wait(self.client, self.start, lambda: self.cancelled)
+        if not self.cancelled:
+            self.app.call_from_thread(self.dismiss, err or "ok")
+
+    def action_cancel(self):
+        self.cancelled = True
+        self.dismiss(None)
+
+
 HELP = [
     ("Videos", [("Enter  Right", "watch full screen (q in the player comes back)"), ("a", "listen now, in the background"),
                 ("e", "add to the listening queue"), ("l", "add to a playlist"),
@@ -348,11 +587,11 @@ HELP = [
                 ("c", "open the channel")]),
     ("Listening", [("Space", "pause or play"), (",  .", "back / forward 10 seconds"), ("-  +", "volume"),
                    ("n  p", "next / previous in the queue"), ("x", "stop"), ("F6 F7 F8", "media keys work too")]),
-    ("Playlists and queue", [("Enter", "open a playlist, or jump to a queued video"), ("A", "listen to the whole playlist"),
-                             ("Delete", "remove the video, or delete the playlist")]),
-    ("Views", [("1 to 5  Tab", "subscriptions, search, history, playlists, queue"), ("/", "search"),
-               ("Left  Esc", "back"), ("r", "refresh"), ("I", "import subscriptions from Google Takeout"),
-               ("q", "quit")]),
+    ("Library and queue", [("Enter", "open a playlist, or jump to a queued video"), ("A", "listen to the whole playlist"),
+                           ("Delete", "remove the video, or delete the playlist (deck playlists only)")]),
+    ("Views", [("1 to 6  Tab", "home, subscriptions, search, history, library, queue"), ("/", "search"),
+               ("Left  Esc", "back"), ("r", "refresh"), ("L", "sign in to YouTube, or sign out"),
+               ("I", "import subscriptions from Google Takeout"), ("q", "quit")]),
 ]
 
 
@@ -400,9 +639,10 @@ class Tube(App):
         Binding("shift+tab", "cycle(-1)", show=False, priority=True),
         Binding("q", "quit", show=False), Binding("question_mark", "help", show=False),
         Binding("slash", "search", show=False), Binding("escape", "back", show=False),
-        Binding("1", "jump('feed')", show=False), Binding("2", "jump('search')", show=False),
-        Binding("3", "jump('history')", show=False), Binding("4", "jump('playlists')", show=False),
-        Binding("5", "jump('queue')", show=False), Binding("r", "refresh", show=False),
+        Binding("1", "jump('home')", show=False), Binding("2", "jump('feed')", show=False),
+        Binding("3", "jump('search')", show=False), Binding("4", "jump('history')", show=False),
+        Binding("5", "jump('playlists')", show=False), Binding("6", "jump('queue')", show=False),
+        Binding("r", "refresh", show=False), Binding("L", "account", show=False),
         Binding("right", "watch", show=False), Binding("left", "back", show=False),
         Binding("a", "listen", show=False), Binding("e", "enqueue", show=False),
         Binding("A", "listen_all", show=False), Binding("l", "add_to_playlist", show=False),
@@ -427,6 +667,8 @@ class Tube(App):
         self.last_query = ""
         self.rows = {}
         self.feed_cache = None
+        self.account = {}           # "home", "subs", "playlists" from the YouTube account
+        self.loading = set()
         self.video_proc = None
         self.queue_sig = None
 
@@ -442,7 +684,7 @@ class Tube(App):
                                    ("?", CYAN), (" help", GRAY)), id="hint")
 
     def on_mount(self):
-        self.jump("feed" if self.cfg["subs"] else ("history" if self.history else "search"))
+        self.jump("feed" if signed_in() or self.cfg["subs"] else ("history" if self.history else "search"))
         self.set_interval(1, self.tick)
         self.tick()
 
@@ -457,7 +699,9 @@ class Tube(App):
     # ----- views -----
     def jump(self, kind):
         self.stack = []
-        if kind == "feed":
+        if kind == "home":
+            self.show_home()
+        elif kind == "feed":
             self.show_feed()
         elif kind == "history":
             self.show("history", "History", self.history)
@@ -479,9 +723,9 @@ class Tube(App):
         if isinstance(self.screen, ModalScreen):
             return
         kinds = [k for k, _ in TABS]
-        cur = self.view[0] if self.view else "feed"
+        cur = self.view[0] if self.view else "home"
         if cur not in kinds:                         # inside a channel or playlist: use its tab
-            cur = next((v[0] for v in reversed(self.stack) if v[0] in kinds), "feed")
+            cur = next((v[0] for v in reversed(self.stack) if v[0] in kinds), "home")
         self.jump(kinds[(kinds.index(cur) + d) % len(kinds)])
 
     def show(self, kind, title, items, push=False):
@@ -508,7 +752,7 @@ class Tube(App):
             keep = ol.highlighted
         ol.clear_options()
         self.rows = {}
-        subs = {s["id"] for s in self.cfg["subs"]}
+        subs = {s["id"] for s in self.all_subs()}
         opts = []
         for i, v in enumerate(items):
             key = f"{i}:{v.get('id') or v.get('_pl')}"
@@ -546,8 +790,11 @@ class Tube(App):
         return t + line
 
     def render_playlist(self, p):
+        if "_api" in p:
+            sub = "on YouTube" + (f"  ·  {plural(p['count'], 'video')}" if p.get("count") is not None else "")
+            return Text.assemble((I_LIST + "  ", RED), (p["_pl"], f"bold {FG}"), ("\n   " + sub, GRAY))
         return Text.assemble((I_LIST + "  ", PURPLE), (p["_pl"], f"bold {FG}"),
-                             ("\n   " + plural(p["count"], "video"), GRAY))
+                             ("\n   on the deck  ·  " + plural(p["count"], "video"), GRAY))
 
     def status(self, msg):
         self.main.query_one("#status").update(msg)
@@ -568,12 +815,132 @@ class Tube(App):
             return None
         return int(ol.get_option_at_index(ol.highlighted).id.split(":", 1)[0])
 
+    # ----- the YouTube account -----
+    def all_subs(self):
+        """Subscriptions on the YouTube account plus channels followed only on the deck."""
+        subs, seen = [], set()
+        for s in (self.account.get("subs") or []) + self.cfg["subs"]:
+            if s["id"] not in seen:
+                seen.add(s["id"])
+                subs.append(s)
+        return subs
+
+    def load_account(self, kind, fn):
+        if kind in self.loading:
+            return
+        self.loading.add(kind)
+
+        def run():
+            try:
+                items, err = fn(), None
+            except Exception as ex:
+                items, err = None, err_text(ex)
+            self.call_from_thread(self._account_done, kind, items, err)
+        self.run_worker(run, thread=True, group=f"account-{kind}")
+
+    def _account_done(self, kind, items, err):
+        self.loading.discard(kind)
+        here = self.view and self.view[0] == {"subs": "feed"}.get(kind, kind)
+        if err:
+            if here:
+                self.status(f"Could not load from YouTube: {err}")
+            return
+        self.account[kind] = items
+        if kind == "subs":
+            self.feed_cache = None
+            if here:
+                self.show_feed()
+        elif kind == "playlists":
+            if here:
+                self.show_playlists()
+        elif here and not self.stack:
+            self.view = (kind, self.view[1], items)
+            self.fill(items, keep=0)
+            self.home_status()
+
+    def show_home(self, refresh=False):
+        if not signed_in():
+            self.show("home", "Home", [])
+            self.status("Press L to sign in to YouTube. The README explains the one-time setup.")
+            return
+        if refresh:
+            self.account.pop("home", None)
+        self.show("home", "Home", self.account.get("home") or [])
+        if "home" in self.account:
+            self.home_status()
+        else:
+            self.status("Loading...")
+            self.load_account("home", lambda: popular(self.cfg))
+
+    def home_status(self):
+        self.status(f"Popular in {region(self.cfg)}   (Google's API has no personal recommendations)")
+
+    def action_account(self):
+        if signed_in():
+            def picked(oid):
+                if oid == "out":
+                    self.push_screen(Confirm("Sign out of YouTube on the deck?"), signed_out)
+
+            def signed_out(yes):
+                if yes:
+                    sign_out()
+                    self.account = {}
+                    self.feed_cache = None
+                    self.notify("Signed out", timeout=2)
+                    self.jump("feed")
+            self.push_screen(Picker("YouTube account", [("out", "Sign out")]), picked)
+            return
+        client = load_json(API_CFG, {})
+        if client.get("client_id") and client.get("client_secret"):
+            return self.start_login(client)
+
+        def got_id(cid):
+            if cid:
+                self.push_screen(Prompt("OAuth client secret", "GOCSPX-..."), lambda sec: got_secret(cid, sec))
+
+        def got_secret(cid, sec):
+            if sec:
+                client = {"client_id": cid, "client_secret": sec}
+                save_secret(API_CFG, client)
+                self.start_login(client)
+        self.push_screen(Prompt("OAuth client ID (Google Cloud, type TVs and Limited Input devices)",
+                                "...apps.googleusercontent.com"), got_id)
+
+    @work(thread=True, exclusive=True, group="signin")
+    def start_login(self, client):
+        self.call_from_thread(self.status, "Asking Google for a sign-in code...")
+        try:
+            start = device_start(client)
+        except (ApiError, OSError) as ex:
+            self.call_from_thread(self.status, f"Could not start the sign-in: {err_text(ex)}")
+            return
+        self.call_from_thread(self.push_screen, DeviceLogin(client, start), self._login_done)
+
+    def _login_done(self, res):
+        if res is None:
+            self.status("Sign-in cancelled.")
+        elif res != "ok":
+            self.status(res)
+            self.notify(res, severity="error", timeout=6)
+        else:
+            self.notify("Signed in to YouTube", timeout=3)
+            self.account = {}
+            self.feed_cache = None
+            self.jump("feed")
+
     # ----- subscriptions feed -----
     def show_feed(self, refresh=False):
-        n = len(self.cfg["subs"])
+        if signed_in() and ("subs" not in self.account or refresh):
+            self.account.pop("subs", None)
+            self.show("feed", "Subscriptions", self.feed_cache or [])
+            self.status("Loading your subscriptions...")
+            self.load_account("subs", my_subscriptions)
+            return
+        subs = self.all_subs()
+        n = len(subs)
         if not n:
             self.show("feed", "Subscriptions", [])
-            self.status("No subscriptions yet. Press s on a video, or I to import from Google Takeout.")
+            self.status("No subscriptions yet. Press s on a video, I to import from Google Takeout, or L to sign in.")
             return
         if self.feed_cache is not None and not refresh:
             self.show("feed", "Subscriptions", self.feed_cache)
@@ -581,19 +948,20 @@ class Tube(App):
             return
         self.show("feed", "Subscriptions", self.feed_cache or [])
         self.status(f"Loading {plural(n, 'channel')}...")
-        self.load_feed()
+        self.load_feed(subs)
 
     @work(thread=True, exclusive=True, group="feed")
-    def load_feed(self):
+    def load_feed(self, subs):
+        """New uploads from each channel's RSS feed, which costs no API quota."""
         videos, failed = [], 0
         with ThreadPoolExecutor(8) as ex:
-            for res in ex.map(lambda s: self._safe_feed(s["id"]), self.cfg["subs"]):
+            for res in ex.map(lambda s: self._safe_feed(s["id"]), subs):
                 if res is None:
                     failed += 1
                 else:
                     videos += res
         videos.sort(key=lambda v: v.get("published") or 0, reverse=True)
-        self.call_from_thread(self._feed_done, videos[:300], failed)
+        self.call_from_thread(self._feed_done, videos[:300], failed, len(subs))
 
     def _safe_feed(self, cid):
         try:
@@ -601,11 +969,11 @@ class Tube(App):
         except Exception:
             return None
 
-    def _feed_done(self, videos, failed):
+    def _feed_done(self, videos, failed, n):
         self.feed_cache = videos
         if self.view and self.view[0] == "feed":
             self.show("feed", "Subscriptions", videos)
-        msg = f"{len(videos)} videos from {plural(len(self.cfg['subs']), 'channel')}"
+        msg = f"{len(videos)} videos from {plural(n, 'channel')}"
         self.status(msg + (f", {failed} could not load" if failed else ""))
 
     # ----- search -----
@@ -628,7 +996,7 @@ class Tube(App):
         try:
             res = search(q)
         except Exception as ex:
-            self.call_from_thread(self.status, f"Search failed: {str(ex)[:120]}")
+            self.call_from_thread(self.status, f"Search failed: {err_text(ex)}")
             return
         self.call_from_thread(self._search_done, q, res)
 
@@ -665,18 +1033,26 @@ class Tube(App):
 
     def action_back(self):
         if self.stack:
-            kind, title, items = self.stack.pop()
+            prev = self.stack.pop()
             self.view = None
-            if kind == "playlists":
+            if prev[0] == "playlists":
                 self.show_playlists()
             else:
-                self.show(kind, title, items)
+                self.show(*prev[:3])
+                self.view = prev             # an open YouTube playlist keeps its source as a 4th item
         elif self.view and self.view[0] == "search" and not self.main.query_one("#search").has_focus:
             self.main.query_one("#search").focus()
 
     def action_refresh(self):
         kind = self.view[0] if self.view else ""
-        if kind == "feed":
+        if kind == "home":
+            self.show_home(refresh=True)
+        elif kind == "playlists" and signed_in():
+            self.account.pop("playlists", None)
+            self.show_playlists()
+        elif kind == "rplaylist":
+            self.open_playlist(self.view[3], refresh=True)
+        elif kind == "feed":
             self.show_feed(refresh=True)
         elif kind == "channel" and self.view[2]:
             self.open_channel(self.view[2][0]["channel_id"])
@@ -698,7 +1074,7 @@ class Tube(App):
         try:
             name, videos = channel_feed(cid)
         except Exception as ex:
-            self.call_from_thread(self.status, f"Could not load the channel: {str(ex)[:100]}")
+            self.call_from_thread(self.status, f"Could not load the channel: {err_text(ex, 100)}")
             return
         self.call_from_thread(self._channel_done, cid, name, videos)
 
@@ -711,6 +1087,9 @@ class Tube(App):
         v = self.current_video()
         if not v or not v.get("channel_id"):
             return
+        if any(s["id"] == v["channel_id"] for s in self.account.get("subs") or []):
+            self.notify("You are subscribed on YouTube. Unsubscribe on youtube.com.", timeout=3)
+            return
         subs = self.cfg["subs"]
         hit = [s for s in subs if s["id"] == v["channel_id"]]
         if hit:
@@ -719,7 +1098,9 @@ class Tube(App):
         else:
             subs.append({"id": v["channel_id"], "name": v.get("channel") or v["channel_id"]})
             subs.sort(key=lambda s: s["name"].lower())
-            self.notify(f"Subscribed to {v.get('channel')}", timeout=2)
+            self.notify(f"Subscribed to {v.get('channel')}"
+                        + (" on the deck only. Subscribe on youtube.com to add it to your account." if signed_in() else ""),
+                        timeout=4 if signed_in() else 2)
         self.save_cfg()
         self.feed_cache = None
         self.fill(self.view[2])
@@ -744,13 +1125,43 @@ class Tube(App):
     # ----- playlists -----
     def show_playlists(self):
         pls = self.cfg["playlists"]
-        self.show("playlists", "Playlists", [{"_pl": name, "count": len(v)} for name, v in pls.items()])
-        self.status(f"{plural(len(pls), 'playlist')}" if pls else "No playlists yet. Press l on a video to start one.")
+        items = []
+        if signed_in():
+            items = [{"_pl": "Liked videos", "_api": "liked"}] + (self.account.get("playlists") or [])
+        items += [{"_pl": name, "count": len(v)} for name, v in pls.items()]
+        self.show("playlists", "Library", items)
+        if signed_in() and "playlists" not in self.account:
+            self.status("Loading your YouTube playlists...")
+            self.load_account("playlists", my_playlists)
+        else:
+            self.status(plural(len(items), "playlist") if items else "No playlists yet. Press l on a video to start one.")
 
-    def open_playlist(self, name):
-        videos = self.cfg["playlists"].get(name, [])
-        self.show("playlist", name, videos, push=True)
-        self.status(f"{plural(len(videos), 'video')}   A listens to all, Delete removes one")
+    def open_playlist(self, p, refresh=False):
+        if "_api" not in p:
+            videos = self.cfg["playlists"].get(p["_pl"], [])
+            self.show("playlist", p["_pl"], videos, push=True)
+            self.status(f"{plural(len(videos), 'video')}   A listens to all, Delete removes one")
+            return
+        self.status(f"Loading {p['_pl']}...")
+        self.load_playlist(p, refresh)
+
+    @work(thread=True, exclusive=True, group="playlist")
+    def load_playlist(self, p, refresh):
+        try:
+            videos = playlist_videos(p["_api"])
+        except Exception as ex:
+            self.call_from_thread(self.status, f"Could not load {p['_pl']}: {err_text(ex, 100)}")
+            return
+        self.call_from_thread(self._playlist_done, p, videos, refresh)
+
+    def _playlist_done(self, p, videos, refresh):
+        if refresh and self.view and self.view[0] == "rplaylist":
+            self.view = ("rplaylist", p["_pl"], videos, p)
+            self.fill(videos)
+        else:
+            self.show("rplaylist", p["_pl"], videos, push=True)
+            self.view = ("rplaylist", p["_pl"], videos, p)
+        self.status(f"{plural(len(videos), 'video')} on YouTube   A listens to all")
 
     def action_add_to_playlist(self):
         v = self.current_video()
@@ -782,7 +1193,9 @@ class Tube(App):
         cur = self.current()
         if not cur:
             return
-        if kind == "playlists":
+        if kind == "rplaylist" or (kind == "playlists" and "_api" in cur):
+            self.notify("That is on your YouTube account. Change it on youtube.com.", timeout=3)
+        elif kind == "playlists":
             name = cur["_pl"]
 
             def done(yes):
@@ -870,10 +1283,24 @@ class Tube(App):
             self.queue_videos([v], True)
             self.notify(f"Listening to {v['title']}", timeout=2)
 
+    @work(thread=True, group="player-fetch")
+    def queue_remote(self, p, replace):
+        try:
+            videos = playlist_videos(p["_api"])
+        except Exception as ex:
+            self.call_from_thread(self.notify, f"Could not load {p['_pl']}: {err_text(ex, 100)}", severity="error")
+            return
+        if videos:
+            self.call_from_thread(self.notify, f"{'Listening to' if replace else 'Queued'} {plural(len(videos), 'video')}",
+                                  timeout=2)
+            self.queue_videos(videos, replace)
+
     def action_enqueue(self):
         cur = self.current()
         if not cur:
             return
+        if "_api" in cur:
+            return self.queue_remote(cur, False)
         videos = self.cfg["playlists"].get(cur["_pl"], []) if "_pl" in cur else [cur]
         if videos:
             self.queue_videos(videos, False)
@@ -884,6 +1311,8 @@ class Tube(App):
         cur = self.current()
         if kind == "playlist":
             videos = self.view[2]
+        elif cur and "_api" in cur:
+            return self.queue_remote(cur, True)
         elif cur and "_pl" in cur:
             videos = self.cfg["playlists"].get(cur["_pl"], [])
         else:
@@ -909,7 +1338,7 @@ class Tube(App):
         if not cur:
             return
         if "_pl" in cur:
-            return self.open_playlist(cur["_pl"])
+            return self.open_playlist(cur)
         if kind == "queue":
             deck_mpv.pause_others(SOCK)
             ipc("playlist-play-index", self.index_of_current())
@@ -1029,6 +1458,20 @@ def main():
         n = import_takeout(sys.argv[2], cfg)
         save_json(CONFIG, cfg)
         print(f"Imported {plural(n, 'new channel')}, {len(cfg['subs'])} in total.")
+        return
+    if len(sys.argv) == 2 and sys.argv[1] == "--login":
+        client = load_json(API_CFG, {})
+        if not (client.get("client_id") and client.get("client_secret")):
+            client = {"client_id": input("OAuth client ID: ").strip(), "client_secret": input("OAuth client secret: ").strip()}
+            save_secret(API_CFG, client)
+        start = device_start(client)
+        print(f"On your phone or computer, open {start.get('verification_url')} and enter {start['user_code']}")
+        err = device_wait(client, start, lambda: False)
+        print(err or "Signed in.")
+        sys.exit(1 if err else 0)
+    if len(sys.argv) == 2 and sys.argv[1] == "--logout":
+        sign_out()
+        print("Signed out.")
         return
     Tube().run()
 

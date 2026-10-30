@@ -11,3 +11,6 @@ __pycache__/
 **/spotify-token.json
 **/spotify.json
 **/oauth/credentials.json
+# YouTube login (OAuth client and token)
+**/youtube-api.json
+**/youtube-token.json

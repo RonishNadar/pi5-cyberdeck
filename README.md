@@ -415,13 +415,22 @@ Notes:
 
 ## YouTube
 
-`tube.py` (the **YouTube** entry in Apps) searches and plays YouTube without a Google account. **yt-dlp** finds and streams the videos, **mpv** plays them, and **Deno** runs YouTube's player JavaScript for yt-dlp. Videos open full screen in mpv; press `q` there to come back. Audio can also play in the background while you use other tabs.
+`tube.py` (the **YouTube** entry in Apps) searches and plays YouTube. It works without a Google account, and once you sign in it shows your own subscriptions, Liked videos and playlists. **yt-dlp** finds and streams the videos, **mpv** plays them, and **Deno** runs YouTube's player JavaScript for yt-dlp. Videos open full screen in mpv; press `q` there to come back. Audio can also play in the background while you use other tabs.
 
-There are five views: **Subscriptions**, **Search**, **History**, **Playlists** and **Queue**. Switch with `1` to `5`, or `Tab` and `Shift+Tab` (these work from the search box too).
+There are six views: **Home**, **Subscriptions**, **Search**, **History**, **Library** and **Queue**. Switch with `1` to `6`, or `Tab` and `Shift+Tab` (these work from the search box too).
 
-- **Subscriptions** come from each channel's public RSS feed, so they need no login. To bring over your YouTube subscriptions, get `subscriptions.csv` from Google Takeout (select only "YouTube and YouTube Music", then "subscriptions"), copy it to `~/Downloads`, and press `I` (or run `tube.py --import FILE`).
+- **Signing in** uses Google's YouTube Data API. You enter a code on your phone or computer, the way TV apps sign in, so nothing has to be copied to the deck. It needs a free Google Cloud OAuth client, set up once:
+  1. At [console.cloud.google.com](https://console.cloud.google.com), create a project and enable **YouTube Data API v3** (APIs & Services, Library).
+  2. Under **Google Auth Platform** (OAuth consent screen), choose **External**, fill in the app name and your email, and add the scope `.../auth/youtube.readonly`.
+  3. Under **Audience**, press **Publish app** so the status is **In production**. In "Testing" mode, Google ends the login after 7 days. The app does not need Google's review for your own use; when you sign in, Google warns that it is unverified (Advanced, then Go to ...).
+  4. Under **Clients**, create an OAuth client of type **TVs and Limited Input devices**, and keep the client ID and secret.
+  5. In the app press `L` (or run `tube.py --login`), paste the ID and secret, then open `google.com/device` on your phone and enter the code the deck shows.
+
+  The client goes in `~/.config/deck/youtube-api.json` and the login in `~/.config/deck/youtube-token.json` (both only readable by you, never collected into this repo). `L` again signs out (or `tube.py --logout`), which also cancels the login at Google.
+- **Signed in:** Subscriptions shows new uploads from the channels you subscribe to on YouTube (plus any you follow only on the deck), and Library has your Liked videos and your YouTube playlists (red icon) above the deck playlists (purple). Home shows what is popular in your region (from `LANG`, or set `"region": "DE"` in `youtube.json`). Google's API has no personal recommendations, watch history or Watch later, so Home is not your youtube.com home page, History stays on the deck, and plays are not added to your YouTube history. Access is read only: subscribing, liking and editing YouTube playlists happen on youtube.com, and `s` and `l` change only the deck's own lists. The API allows 10,000 units a day, and a normal day on the deck uses well under 100.
+- **Signed out, Subscriptions** come from each channel's public RSS feed, so they need no login. To bring over your YouTube subscriptions, get `subscriptions.csv` from Google Takeout (select only "YouTube and YouTube Music", then "subscriptions"), copy it to `~/Downloads`, and press `I` (or run `tube.py --import FILE`).
 - **Queue:** `a` listens now, `e` adds to the queue. Background audio keeps playing after you leave the app. The Queue view shows what is next; `Enter` jumps to an item and `Delete` removes it.
-- **Playlists** are saved on the deck. `l` adds a video to one (or makes a new one), `A` listens to a whole playlist.
+- **Deck playlists** are saved on the deck. `l` adds a video to one (or makes a new one), `A` listens to a whole playlist.
 - **Settings and data:** subscriptions, playlists and options are in `~/.config/deck/youtube.json`. History (the last 200 videos) is in `~/.local/share/deck/youtube-history.json`.
 - **Quality** defaults to 720p H.264. The Pi 5 decodes H.264 in software (it has no H.264 hardware decoder), and H.264 is the cheapest format for it. Change `"quality"` in `youtube.json`. Set `"hide_shorts": true` to hide Shorts.
 - **Downloads** go to `~/Videos/YouTube` (video, .mkv) and `~/Music/YouTube` (audio, .m4a, playable in cmus).
@@ -430,16 +439,17 @@ There are five views: **Subscriptions**, **Search**, **History**, **Playlists** 
 
 | Key | Action |
 |---|---|
-| `Enter` `Right` | watch full screen (in Playlists: open; in Queue: play that item) |
+| `Enter` `Right` | watch full screen (in Library: open; in Queue: play that item) |
 | `a` / `e` | listen now / add to the queue |
 | `l` / `A` | add to a playlist / listen to the whole playlist |
 | `d` / `D` | download video / audio only |
 | `s` / `c` | subscribe or unsubscribe the channel / open the channel |
 | `Space` `,` `.` `-` `+` | pause, seek 10 seconds, volume (background audio) |
 | `n` `p` `x` | next, previous, stop |
-| `Delete` | remove from playlist, queue or history; delete a playlist |
-| `1` to `5`, `Tab` | switch views |
+| `Delete` | remove from a deck playlist, the queue or deck history; delete a deck playlist |
+| `1` to `6`, `Tab` | switch views |
 | `/` `I` `r` | search, import subscriptions, refresh |
+| `L` | sign in to YouTube, or sign out |
 | `Left` `Esc` | back |
 | `?` | all keys |
 

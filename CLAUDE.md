@@ -91,8 +91,14 @@ are editing the live system.
   `2304:1296:10:P`), photos with `rpicam-still`, video with ffmpeg copy to .mkv, saved in
   `~/Pictures/Camera`.
 - `tube.py`: YouTube via yt-dlp (pip, in the deck venv; needs `deno` in `~/.local/bin` or
-  `/usr/local/bin`) and mpv (+ mpv-mpris). Search is yt-dlp `ytsearch`, subscriptions are channel RSS
-  feeds (no Google login). Background audio is a detached mpv with IPC socket
+  `/usr/local/bin`) and mpv (+ mpv-mpris). Search is yt-dlp `ytsearch`. Signed out, subscriptions are
+  channel RSS feeds. Signed in (`L` or `--login`: OAuth device flow, client of type
+  "TVs and Limited Input devices", scope `youtube.readonly`; client in `~/.config/deck/youtube-api.json`, token in
+  `youtube-token.json`, both mode 600, **secrets, never commit**), the YouTube Data API v3 gives the subscription
+  list (the feed itself still comes from RSS, no quota), Liked videos (`videos?myRating=like`), own playlists,
+  and Home = `chart=mostPopular`. The API has no recommendations, history or Watch later. The consent screen must
+  be "In production", or Google expires the refresh token after 7 days. Search still uses yt-dlp. `QuietLog`
+  keeps yt-dlp from writing to the TUI. Background audio is a detached mpv with IPC socket
   `/run/user/1000/deck-tube.sock`. State: `~/.config/deck/youtube.json`,
   `~/.local/share/deck/youtube-history.json`. `deck-media.sh` sends media keys to the playing player.
 - `pods.py`: podcasts. Apple search/lookup + top-charts JSON (no key), RSS feeds cached in
@@ -157,7 +163,8 @@ are editing the live system.
   `scopy` line added to `collect.sh`. New packages go in `scripts/install-packages.sh`. New services
   or symlinks go in `scripts/install-files.sh`. Document user-visible changes in `README.md`.
 - Never collect or commit: aerc accounts and passwords, Wi-Fi passwords/`*.nmconnection`, SSH keys,
-  `~/.config/deck/spotify*.json`, `~/.cache/spotifyd/oauth`. `.gitignore` covers these. Keep it that
+  `~/.config/deck/spotify*.json`, `~/.cache/spotifyd/oauth`, `~/.config/deck/youtube-{api,token}.json`.
+  `.gitignore` covers these. Keep it that
   way.
 - Scripts assume user `admin` and `/home/admin` paths.
 

@@ -5,8 +5,9 @@
 #   ./scripts/collect.sh && git add -A && git commit -m "Update configs"
 #
 # Secrets are never collected: aerc account files, Wi-Fi passwords (netplan,
-# NetworkManager), SSH keys and Spotify logins (~/.config/deck/spotify*.json,
-# ~/.cache/spotifyd/oauth) are skipped on purpose.
+# NetworkManager), SSH keys, Spotify logins (~/.config/deck/spotify*.json,
+# ~/.cache/spotifyd/oauth) and the YouTube login (~/.config/deck/youtube-{api,token}.json)
+# are skipped on purpose.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
