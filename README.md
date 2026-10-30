@@ -142,6 +142,7 @@ pi5-cyberdeck/
 │   ├── etc/systemd/system/          touch-mouse, bt-set-addr, tty1 autologin
 │   ├── etc/polkit-1/rules.d/        reboot, power off and time settings without a password
 │   ├── etc/dracut.conf.d/edid.conf  EDID inside the initramfs
+│   ├── etc/dracut.conf.d/vc4.conf   display driver inside the initramfs
 │   ├── usr/share/plymouth/themes/deck/
 │   └── lib/firmware/edid/           the finished EDID files
 └── scripts/
@@ -227,6 +228,7 @@ Notes from getting this working:
 - edid-generator's `modeline2edid` refuses a portrait mode (`Computed ratio: UNKNOWN`), so the `.S` file is written by hand with the ratio set to 16:9. That field is legacy and doesn't affect the mode.
 - The kernel template declares an **analog** display. Linux only checks digital displays for HDMI support, so the Pi would drive the panel in **DVI mode with no audio**. `edid-add-audio.py` sets byte 20 to digital and adds a CEA-861 block with stereo LPCM audio and the HDMI vendor block.
 - Ubuntu 26.04 builds its initramfs with **dracut**, not initramfs-tools, so the EDID is added through `/etc/dracut.conf.d/edid.conf`.
+- The display driver (`vc4`) also goes into the initramfs (`/etc/dracut.conf.d/vc4.conf`). Without it, it loads only after the switch to the root filesystem (~11 s). Until then the only screen is the firmware's 640x480 fallback (the panel has no EDID), and the splash is drawn cropped on it before jumping to the real mode.
 
 ### 4. Packages and files
 

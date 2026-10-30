@@ -29,7 +29,8 @@ are editing the live system.
   byte 20 to 0x80 (digital) and appends a CEA-861 block (LPCM 2ch, HDMI VSDB 00-0C-03). Without that
   the Pi uses DVI mode and there is no HDMI audio (error 524). The files live in `/lib/firmware/edid/`.
 - The initramfs is **dracut** (not initramfs-tools): `/etc/dracut.conf.d/edid.conf` includes the
-  EDID. Rebuild with `sudo update-initramfs -u` (Ubuntu wraps dracut).
+  EDID, `vc4.conf` adds the vc4 driver (early KMS, so Plymouth draws on 1440x2560 at ~1.5 s instead
+  of the firmware's 640x480 simplefb). Rebuild with `sudo update-initramfs -u` (Ubuntu wraps dracut).
 - `/boot/firmware/config.txt`: `disable_splash=1`, `camera_auto_detect=0`, `dtoverlay=imx708` and
   `dtoverlay=pwm,pin=18,func=2` (backlight) under `[all]`. There may be a temporary `arm_freq=1800` (remove it after the power upgrade).
 - Boot splash: a Plymouth script theme in `/usr/share/plymouth/themes/deck`, selected with
